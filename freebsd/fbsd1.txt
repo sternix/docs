@@ -1,0 +1,4284 @@
+Unix felsefesi : many small tools, each of which does a single job well.
+
+------8<--------------------------------------------
+BSD Lisansı kısaca
+
+Bunu ben yazdım diye iddia etme
+Eğer birşeyler ters gittiyse bizi suçlama
+Kendi ürününün reklamını yaparken bizim adımızı kullanma
+lisans dosyasını programın ile dağıt
+
+------8<--------------------------------------------
+
+/rescue 
+dizininde statically linked  temel uygulamalar bulunuyor
+
+---8<-----------------------------------------------------
+
+freebsd'de eğer bir partition oluşturulmamışsa 
+/bin
+/boot
+/etc
+/sbin
+/root
+/mnt
+/lib
+/libexec
+
+dizinleri / 'a bağlanır
+
+750mb civarında yer tutar
+
+------8<--------------------------------------------
+
+64bitlik bir sistemde : eğer sistemde 4gb ram ve 4gb'da swap varsa
+bir process 8Gb'dan fazla kullanmak istediğinde Out of Memory hatası verip
+sonlandırılır
+
+------8<--------------------------------------------
+FreeBSD'de açılış ekranının (Welcome to FreeBSD)
+boşluk tuşuna basarak durdurabiliriz
+sonra menüden istediğimiz seçerek yada enter ile default'u seçerek devam
+edebiliriz
+
+------8<--------------------------------------------
+
+sistem açılışında eğer bir servis çalışmıyorsa
+# sysrc rc_debug=YES
+# sysrc rc_info=YES
+
+gibi rc.conf parametreleri ile 
+hataları çözmeye çalışabiliriz,
+
+rc_debug="NO"           # Set to YES to enable debugging output from rc.d
+rc_info="NO"            # Enables display of informational messages at boot.
+
+------8<--------------------------------------------
+
+internet erişimi için (statik ip)
+
+/etc/rc.conf 
+dosyasına
+
+ifconfig_XX="inet XX.XX.XX.XX netmask XX.XX.XX.XX"
+
+ör:
+
+ifconfig_em0="inet 192.168.10.3 netmask 255.255.255.0"
+yada
+ifconfig_re0="inet 192.168.10.3/24"
+
+ve 
+defaultrouter="XX.XX.XX.XX"
+
+ör:
+defaultrouter="192.168.10.1"
+
+
+route add default 192.168.10.1
+komutu ile'de restart yada /etc/netstart yapılmadan default router atanır,
+
+default router'ı görmek için
+route -n get 0.0.0.0
+
+
+/etc/resolv.conf
+dosyasına
+
+nameserver XX.XX.XX.XX
+
+ör: (google dns için)
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+
+
+ör: (opendns dns için)
+nameserver 208.67.222.222
+nameserver 208.67.220.220
+
+ayarlar yapıldıktan sonra
+
+# /etc/rc.d/netif restart && /etc/rc.d/routing restart
+
+komutu çalıştırılır
+
+eğer statikten dhcp adresine geçilmek istenirse
+
+# dhclient INTERFACE_ADI
+# dhclient em0
+şeklinde ip alınır
+
+# vim /etc/rc.conf'a
+ifconfig_INTERFACE="DHCP"
+
+------8<--------------------------------------------
+temel paketler ve ilk adımlar
+
+# pkg install doas vim-lite perl5 portupgrade flex bison gmake openntpd
+
+# mv /usr/bin/flex /usr/bin/flex.old
+# mv /usr/bin/flex++ /usr/bin/flex++.old
+
+# sysrc fsck_y_enable=YES
+
+------8<--------------------------------------------
+konsol mesajlarının log dosyasına yazılması için
+(buraya genel bilgiler ve authentication error yada kritik hatalar yazılıyor)
+
+# touch /var/log/console.log
+# chmod 600 /var/log/console.log
+
+# vim /etc/syslog.conf
+=BEGIN
+#console.info                                   /var/log/console.log
+=>
+console.info                                   /var/log/console.log
+=END
+
+# service syslogd restart
+
+------8<--------------------------------------------
+
+vim (vim-lite) kurulumu 
+
+ports:
+# cd /usr/ports/editors/vim-lite
+# make config-recursive
+# make install clean
+
+yada 
+# pkg install vim-lite
+
+# cp /usr/local/share/vim/vim80/vimrc_example.vim /usr/local/share/vimrc
+
+# vi ~/.vimrc
+=BEGIN
+set nocompatible
+filetype on
+filetype indent on
+set laststatus=2
+set nomodeline
+syntax on
+set bs=2
+set ruler
+set mouse=r
+=END
+
+# cp /root/.vimrc /home/USER/
+
+# vim /usr/local/etc/inputrc
+=BEGIN
+set meta-flag on
+set input-meta on
+set convert-meta off
+set output-meta on
+
+"\e[1~": beginning-of-line
+"\e[4~": end-of-line
+"\e[5~": beginning-of-history
+"\e[6~": end-of-history
+"\e[3~": delete-char
+"\e[2~": quoted-insert
+"\e[5C": forward-word
+"\e[5D": backward-word
+=END
+
+
+------8<--------------------------------------------
+FreeBSD binary sistem güncelleme
+
+# freebsd-update fetch
+# freebsd-update install
+
+# vim /etc/crontab
+=BEGIN
+@daily	root	freebsd-update	cron
+=END
+
+yada
+
+=BEGIN
+@daily	root	freebsd-update	-t	USER	cron
+=END
+
+günlük olarak güncellemeleri kontrol eder eğer bir güncelleme var ise USER'a
+mail atar
+
+------8<--------------------------------------------
+
+freebsd ports'un kurulumu için
+
+# portsnap fetch
+# portsnap extract
+# portsnap fetch update
+
+portsnap normalde dosyalarını
+
+/var/db/portsnap
+
+klasörüne indiriyor
+bu klasörü değiştirmek için
+
+# mkdir /usr/portsnap
+
+# vim /etc/portsnap.conf
+WORKDIR=/usr/portsnap
+
+kurulan paketlerin seçeneklerini
+
+cat /var/db/ports/samba46/options
+
+şeklinde görebiliriz
+
+------8<--------------------------------------------
+# vim /etc/csh.cshrc
+=BEGIN
+set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin $HOME/bin)
+
+setenv PGSQL_HOME /opt/pgsql/9_6_2
+setenv EDITOR vim
+setenv INPUTRC /usr/local/etc/inputrc
+setenv GOROOT /opt/go/1_8_0
+setenv PATH ${PATH}:${GOROOT}/bin
+setenv PATH ${PATH}:${PGSQL_HOME}/bin
+
+bindkey "\e[1~" beginning-of-line  # Home
+bindkey "\e[7~" beginning-of-line  # Home rxvt
+bindkey "\e[2~" overwrite-mode     # Ins
+bindkey "\e[3~" delete-char        # Delete
+bindkey "\e[4~" end-of-line        # End
+bindkey "\e[8~" end-of-line        # End rxvt
+bindkey "^[[1;5D"   backward-word  # ctrl+left
+bindkey "^[[1;5C"   forward-word   # ctrl+right
+=END
+
+not home dizinindeki .cshrc dosyası buradaki değişkenleri yeniden tanımlar
+
+------8<--------------------------------------------
+csh için
+# echo '/usr/bin/clear' >> /etc/csh.logout
+
+ile exit yada logout komutunu çalıştırdığımızda
+ekranı temizliyor (bütün kullanıcılar için)
+
+$ echo '/usr/bin/clear' >> ~/.logout
+ile sadece tek kullanıcı için yapabiliriz
+
+------8<--------------------------------------------
+
+OpenNTP kurulumu
+
+öncelikle timezone doğru ve güncel olmalı
+(saat ileri geri almalarda bu dosya güncel değilse ntp bir işe yaramıyor)
+
+# pkg install zoneinfo
+yada ports'tan
+# cd /usr/ports/misc/zoneinfo
+# make install clean
+
+ntp'den manuel tarih güncelleme
+# ntpdate -b "tr.pool.ntp.org"
+
+OpenNTPD kurulumu
+
+# cd /usr/ports/net/openntpd
+# make install clean
+yada 
+# pkg install net/openntpd
+
+# sysrc openntpd_enable=YES
+
+//sync time at boot, and afterward
+echo 'openntpd_flags="-s"' >> /etc/rc.conf 
+
+# service openntpd start
+
+# vim /usr/local/etc/ntpd.conf
+servers pool.ntp.org
+
+şeklinde olabileceği gibi
+istediğimiz sunucularıda ekleyebiliriz.
+
+=BEGIN
+server 1.tr.pool.ntp.org
+server 2.tr.pool.ntp.org
+server 3.tr.pool.ntp.org
+=END
+
+eğer localde time server için kullanılacaksa
+#listen on *
+->
+listen on *
+
+satırının yorumu kaldırılır
+
+# service openntpd start
+yada
+# /usr/local/etc/rc.d/openntpd start
+
+ntpd.conf örnekleri
+/usr/local/etc/ntpd.conf
+=BEGIN
+# Addresses to listen on (ntpd does not listen by default)
+#listen on *
+listen on 127.0.0.1
+listen on ::1
+listen on 172.16.0.1
+listen on 2001:4830:1632::210:75ff:fe1a:a4f1
+# sync to a single server
+#server ntp.example.org
+# use a random selection of NTP Pool Time Servers
+# see http://support.ntp.org/bin/view/Servers/NTPPoolServers
+servers pool.ntp.org 
+=END
+
+dosyalar
+/usr/share/zoneinfo
+/etc/localtime
+
+
+$ ntpctl -s all
+$ ntpctl -s status
+
+------8<--------------------------------------------
+
+/etc/rc.d/XXX ve
+/usr/local/etc/rc.d/XXX için komutlar
+
+start / stop / restart => Starts, stops, or restarts the daemon if enabled in /etc/rc.conf.
+onestart / onestop / onerestart => Same as above, but used if the daemon has not been enabled.
+rcvar => Prints the parameter to be added to rc.conf and its current state.
+status => Prints the daemon's running state.
+
+------8<--------------------------------------------
+
+putty'de kolon sayısını arttırmak için
+# stty columns 80,1000
+
+------8<--------------------------------------------
+/etc/newsyslog.conf
+TODO : flaglarin tanımları
+
+
+/var/log/nginx-access.log               644  7     1024 *     JC    /var/run/nginx.pid
+/var/log/nginx-error.log                644  7     1024 *     JC    /var/run/nginx.pid
+/var/log/openvpn.log                    600  7     1024 *     JC    /var/run/openvpn.pid
+/var/log/munin/*.log munin:munin        644  7     *    @T00  GNWZ
+
+/logs/www_xyz_com_access.log            644  5     1    *     JC    /opt/apache/2_4_3/logs/httpd.pid 30
+
+# newsyslog -v 
+komutu ile verbose modda görebiliyoruz
+
+# newsyslog -n 
+log yönlendirme yapmadan neler olacağını gösterir
+
+# newsyslog -vv
+verbose olarak gösterir
+
+# newsyslog -nrvv
+
+newsyslog /etc/crontab dosyasında
+0       *       *       *       *       root    newsyslog
+
+şeklinde bir cron job ile saatte bir çalışır,
+
+# newsyslog -f newsyslog.conf -r -n -v -F
+
+B flagi = normalde rotate olduğundan sonra log dosyasına log'un rotate
+edildiği ile alakalı bir not ekleniyor, fakat bazı log dosyaları ör : pflog
+binary ve formatı bozulabileceğinden dolayı bir ekleme yapılmaması grektiğini
+ifade ediyor
+
+
+/var/log/pflog                          600  2     *    @T00  BR    /opt/scripts/rotate_pflog.sh
+
+
+$ cat rotate_pflog.sh
+=BEGIN
+#!/bin/sh
+
+PATH=/bin:/usr/bin
+
+DATE=`date +%Y-%m-%d-%H_%M_%S`
+FILE_NAME="/opt/logs/pflog/pflog-$DATE.xz"
+LOG_FILE=/var/log/pflog.0
+
+xz $LOG_FILE
+mv $LOG_FILE.xz $FILE_NAME
+
+kill -HUP `cat /var/run/pflogd.pid`
+=END
+
+------8<--------------------------------------------
+örnek bir ruby scripti 0 ve 1'inci kolonlarını yazdırıyor
+
+ps aux | /opt/ruby/2_0_0/bin/ruby -n -a -e 'puts "#{$F[0]} #{$F[1]}"'
+
+------8<--------------------------------------------
+
+vlan oluşturmak için
+
+# ifconfig re0.1 create
+# ifconfig re0.2 create
+
+silmek için
+# ifconfig re0.1 destroy
+# ifconfig re0.2 destroy
+
+------8<--------------------------------------------
+
+ssh da network altyapısı ile ilgili bir değişiklik yaptığımızda uzaktan bağlantının kopmaması için
+
+# /etc/rc.d/netif restart && /etc/rc.d/routing restart
+
+------8<--------------------------------------------
+
+Freebsd virtualbox'da negarive calcru hatasını gidermek için (eski sürümlerde)
+
+# sysctl kern.timecounter.hardware=TSC or
+# sysctl kern.timecounter.hardware=i8254 
+
+# vim /etc/sysctl.conf
+kern.timecounter.hardware=TSC 
+
+------8<--------------------------------------------
+
+$ ldconfig -r
+
+ile ldconfig'in baktığı dizin ve kütüphaneler görülebilir
+
+# ldconfig -m PATH
+
+-m ile merge yapılıyor, eski dizinlerin üzerine yazmadan yeni dizin ekleniyor,
+
+# ldconfig /dizin/adı
+tehlikeli eski kayıtları siliyor
+
+rc.conf'ta 
+
+ldconfig_insecure="NO"  # Set to YES to disable ldconfig security checks
+ldconfig_paths="/usr/lib/compat /usr/local/lib /usr/local/lib/compat/pkg"
+ldconfig32_paths="/usr/lib32 /usr/lib32/compat"
+ldconfigsoft_paths="/usr/libsoft /usr/libsoft/compat /usr/local/libsoft"
+ldconfig_paths_aout="/usr/lib/compat/aout /usr/local/lib/aout"
+ldconfig_local_dirs="/usr/local/libdata/ldconfig"
+                        # Local directories with ldconfig configuration files.
+ldconfig_local32_dirs="/usr/local/libdata/ldconfig32"
+                        # Local directories with 32-bit compatibility ldconfig
+ldconfig_localsoft_dirs="/usr/local/libdata/ldconfigsoft"
+                        # Local directories with soft float compatibility ldconfig
+
+
+/var/run/ld-elf.so.hints
+Standard hints file for the ELF dynamic linker.
+
+------8<--------------------------------------------
+
+FreeBSD Slice  == Fdisk partition
+
+disk information
+$ fdisk -v
+$ fdisk -v ada0
+
+------8<--------------------------------------------
+
+konsoldan CTL+ALT+DEL tuşları ile restart'ı önlemek için
+
+# sysctl hw.syscons.kbd_reboot=0
+tekrar etkinleştirmek için 
+# sysctl hw.syscons.kbd_reboot=1
+
+# vim /etc/systctl.conf
+=BEGIN
+hw.syscons.kbd_reboot=0
+=END
+
+# service sysctl restart
+------8<--------------------------------------------
+
+Bir ethernet kartı UP yada DOWN olduktan sonra bir işlem yapmak istiyorsak
+
+UP için
+/etc/start_if.IF_ADI
+
+DOWN için
+/etc/stop_if.IF_ADI
+
+dosyasına kodları yazabiliriz
+
+ör:
+vim /etc/start_if.em0
+=BEGIN
+ifconfig re0 ether eb:ec:ed:ef:ab:ac
+=END
+
+gibi re0 arayüzü UP olduğuktan sonra
+mac adresini değiştirebiliriz
+
+NOT:
+
+/etc/network.subr
+dosyasında aşağıdaki şekilde tanımlanmış
+
+
+# ifscript_up if
+#       Evaluate a startup script for the $if interface.
+#       It returns 0 if a script was found and processed or
+#       1 if no script was found.
+#
+ifscript_up()
+{
+        if [ -r /etc/start_if.$1 ]; then
+                . /etc/start_if.$1
+                return 0
+        else
+                return 1
+        fi
+}
+
+# ifscript_down if
+#       Evaluate a shutdown script for the $if interface.
+#       It returns 0 if a script was found and processed or
+#       1 if no script was found.
+#
+ifscript_down()
+{
+        if [ -r /etc/stop_if.$1 ]; then
+                . /etc/stop_if.$1
+                return 0
+        else
+                return 1
+        fi
+}
+
+
+------8<--------------------------------------------
+
+Sunucunun donanımlarını listelemek için
+açılıştaki harddisk bağlanana kadar olan süredeki çıktıları
+/var/run/dmesg.boot dosyasından görebiliriz
+
+$ cat /var/run/dmesg.boot
+$ dmesg
+
+pci aygıtlar
+$ pciconf -lv
+kernel bir aygıt için sürücü bulamamış olsa bile listeleniyor,
+sisteme takılı olması yeterli
+
+// wireless kartlar
+$ pciconf -lv |grep Wireless 
+
+daha detaylı olarak
+$ devinfo -vr
+
+
+# pkg install dmidecode
+yada
+make -C /usr/ports/sysutils/dmicode install clean
+
+# dmidecode 
+bios bilgilerini listeler (işlemci , anakart , ram , ekran kartı vs.)
+
+=BEGIN
+# dmidecode | grep -A 3 "DMI type 1,"
+Handle 0x0001, DMI type 1, 25 bytes
+System Information
+        Manufacturer: MSI
+        Product Name: MS-7032
+=END
+
+
+usb aygıtlar
+$ usbconfig
+
+
+sistemdeki diskleri listeler
+$ camcontrol devlist
+$ camcontrol devlist -v
+$ camcontrol rescan all
+$ camcontrol identify ada0
+
+
+disklerin partitionları listelemek için
+$ gpart show 
+
+birçok özellik içeriyor
+$ man camcontrol
+
+
+$ grep memory /var/run/dmesg.boot
+real memory  = 4294967296 (4096 MB)
+avail memory = 3836792832 (3659 MB)
+[TTM] Zone  kernel: Available graphics memory: 1949194 kiB
+info: [drm] radeon: 256M of VRAM memory ready
+info: [drm] radeon: 512M of GTT memory ready.
+
+
+$ grep -i cpu /var/run/dmesg.boot 
+CPU: AMD Phenom(tm) II X3 720 Processor (2800.28-MHz K8-class CPU)
+...
+
+
+$ grep -i mem /var/run/dmesg.boot
+real memory  = 4294967296 (4096 MB)
+avail memory = 3836792832 (3659 MB)
+...
+
+------8<--------------------------------------------
+interface'lerin destekleyebileceği media tipleri
+
+$ ifconfig -m
+
+yada tek bir interface için
+$ ifconfig -m re0
+
+ifconfig komutundaki "media:" alanı şu anda kullandığı media tipini gösteriyor
+gigabit destekleyebilirken 10/100 kullanıyor olabilir
+
+------8<--------------------------------------------
+
+proc dosya sistemini mount etmek için (procfs)
+
+# mount -t procfs procfs /proc
+
+sistem açılırken mount edilmesi için fstab dosyasına 
+
+# echo 'proc  /proc procfs  rw  0 0'  >> /etc/fstab
+# mount /proc
+
+------8<--------------------------------------------
+
+Sistem tarih ve saatini değiştirmek
+
+# date YYYYmmDDhhMM
+# date 201402181302
+Tue Feb 18 13:02:00 EET 2014
+
+# date 1234
+tarihi değiştirmeden sadece saati değiştirir
+saati 12:34 olarak günceller
+
+------8<--------------------------------------------
+Disk ve diskin performans bilgisi
+
+$ diskinfo ada0
+ada0    512     500107862016    976773168       0       0       969021  16      63
+
+$ diskinfo -v ada0
+ada0
+        512             # sectorsize
+        500107862016    # mediasize in bytes (466G)
+        976773168       # mediasize in sectors
+        0               # stripesize
+        0               # stripeoffset
+        969021          # Cylinders according to firmware.
+        16              # Heads according to firmware.
+        63              # Sectors according to firmware.
+        WD-WCASY3610758 # Disk ident.
+        Not_Zoned       # Zone Mode
+
+
+// yazma okuma için basit bir ölçüm 
+$ diskinfo -c ada0
+ada0
+        512             # sectorsize
+        500107862016    # mediasize in bytes (466G)
+        976773168       # mediasize in sectors
+        0               # stripesize
+        0               # stripeoffset
+        969021          # Cylinders according to firmware.
+        16              # Heads according to firmware.
+        63              # Sectors according to firmware.
+        WD-WCASY3610758 # Disk ident.
+        Not_Zoned       # Zone Mode
+
+I/O command overhead:
+        time to read 10MB block      0.133948 sec       =    0.007 msec/sector
+        time to read 20480 sectors   2.222715 sec       =    0.109 msec/sector
+        calculated command overhead  
+
+
+
+// disk için benchmark yapıyor (harddiski hafif zorluyor)
+$ diskinfo -t ada0
+ada0
+        512             # sectorsize
+        500107862016    # mediasize in bytes (466G)
+        976773168       # mediasize in sectors
+        0               # stripesize
+        0               # stripeoffset
+        969021          # Cylinders according to firmware.
+        16              # Heads according to firmware.
+        63              # Sectors according to firmware.
+        WD-WCASY3610758 # Disk ident.
+        Not_Zoned       # Zone Mode
+
+Seek times:
+        Full stroke:      250 iter in   5.270845 sec =   21.083 msec
+        Half stroke:      250 iter in   3.478825 sec =   13.915 msec
+        Quarter stroke:   500 iter in   5.618697 sec =   11.237 msec
+        Short forward:    400 iter in   1.186045 sec =    2.965 msec
+        Short backward:   400 iter in   2.158926 sec =    5.397 msec
+        Seq outer:       2048 iter in   0.307542 sec =    0.150 msec
+        Seq inner:       2048 iter in   0.256967 sec =    0.125 msec
+Transfer rates:
+        outside:       102400 kbytes in   1.100277 sec =    93067 kbytes/sec
+        middle:        102400 kbytes in   1.279742 sec =    80016 kbytes/sec
+        inside:        102400 kbytes in   2.206367 sec =    46411 kbytes/sec
+
+------8<--------------------------------------------
+
+/var/log/messages dosyasında 
+yada 
+konsol'da
+
+..... /kernel: arp X.X.X.X moved from xx:xx:xx:xx:xx:xx
+şablonunda hatalar alıyorsak
+
+
+# sysctl net.link.ether.inet.log_arp_movements=0
+
+kalıcı olması için
+# echo 'net.link.ether.inet.log_arp_movements=0' >> /etc/sysctl.conf
+
+$ man 4 arp
+
+------8<--------------------------------------------
+
+swap bilgisi:
+
+pstat , swapinfo = aynı kodu kullanıyor farklı parametreler alıyorlar
+
+$ pstat -s -h
+$ swapinfo -s
+Device          1K-blocks     Used    Avail Capacity
+/dev/ada0p3       8388608       0B     8.0G     0%
+
+$ swapinfo
+$ sysctl vm.vmtotal
+
+
+// kernel tarafındaki açık olan dosya sayısı, en fazla açılabiliecek dosya sayısı 
+ve swap'ın kullanım miktarı, toplam swap miktarı
+$ pstat -T
+521/200000 files
+0M/8192M swap space
+
+buradaki 200000 değeri
+$ sysctl kern.maxfiles
+
+// kernel'deki open file table (açık dosyaların tutulduğu liste)'ı listeliyor
+$ pstat -f 
+LOC     The core location of this table entry.
+TYPE    The type of object the file table entry points to.
+FLG     Miscellaneous state variables encoded thus:
+	R       open for reading
+	W       open for writing
+	A       open for appending
+	I       signal pgrp when data ready
+CNT     Number of processes that know this open file.
+MSG     Number of messages outstanding for this file.
+DATA    The location of the vnode table entry or socket structure for this file.
+OFFSET  The file offset (see lseek(2)).
+
+man pstat
+
+------8<--------------------------------------------
+komut geçmişi (csh için)
+
+// sadece geçmiş komutlar
+$ history -h
+
+// Timestamps (tarih saat bilgisi # ile veriliyor)
+$ history -T -h 
+
+// sondan başa doğru, en son çalıştırılan komut ilk önce
+// varsayılan olarak en son komut en sonra (recent)
+$ history -r
+
+$ history 100
+ID	SAAT	KOMUT
+....
+
+şeklinde listeliyor
+
+// histroy'i bir dosyaya kaydediyor (Save)
+$ history -S history.bak
+
+// history'i temizliyor (clean)
+$ history -c 
+
+$ man csh | less -p 'history \['
+
+/etc/csh.cshrc yada ~/.cshrc dosyasında
+set history = 2048
+set savehist = (2048 merge)
+set histfile = ~/.tcsh_history
+
+ile bazı değerlerini değiştirebiliriz.
+
+eğer hiç geçmiş tutmamasını istersek
+örneğin root için
+// .histroy dosyasını siliyoruz
+# rm -f /root/.history
+// boş bir dosya oluşturuyoruz
+# echo > /root/.history
+// dosyayı değiştirilemez (ekleme çıkartma vs yapılamıyor, her zaman boş dosya olarak kalıyor)
+# chflags schg /root/.history
+
+
+yada ortam değişkenlerini X.cshrc dosyalarına
+unset history
+unset savehist
+
+ikiside aynı işi yapıyor
+
+set history = 0
+set savehist = 0
+
+şekillerinde kaydedebiliriz.
+
+
+NOT:
+$ fc -l 100
+fc: history not active
+
+hatası fc komutu sadece /bin/sh'da çalışıyor
+sh'a geçersek çalışıyor
+csh $ sh
+$ fc -l 100
+....
+
+------8<--------------------------------------------
+
+hangi portu hangi komutun dinlediğini listelemek için
+
+tüm soketleri listelemek için
+$ sockstat
+
+listening olanları listelemek için
+sockstat -l 
+
+ipv4 olanları listelemek için
+sockstat -l -4
+
+sadece bir portu listelemek için
+sockstat -l -4 -p 5432
+
+IP V4 kullanan tüm portlar
+sockstat -4 
+------8<--------------------------------------------
+
+Bir kullanıcı yada grup için ssh sftp scp yasaklama
+
+vim /etc/ssh/sshd_config
+=BEGIN
+#Deny Users
+DenyUsers USER1 USER2
+DenyGroups GROUP1 GROUP2
+=END
+
+kullanıcı yada guruplar boşluk ile ayrılır
+
+# service sshd reload
+
+------8<--------------------------------------------
+swap dosyası eklemek
+
+mümkün ise hızlı ve az kullanılan bir disk tercih edilmeli
+bu işlem bir dosyayı swap olarak kullanmaya yönelik swap partition ayrı bir konu
+
+// 1GB boyutunda boş bir dosya oluşturuyoruz
+# truncate -s 1G /opt/swap0
+
+// herkes erişemesin diye sadece root için okuma ve yazma hakkı veriyoruz
+# chmod 0600 /opt/swap0
+
+// /etc/fstab dosyasına swap file satırını ekliyoruz
+# echo 'md28    none    swap    sw,file=/opt/swap0      0       0' >> /etc/fstab
+
+NOT: buradaki 28'i tercihe bağlı, önemli olan sistemde kullanılmayan bir md değeri verilmeli
+
+# swapon -aq
+komutu ile fstab dosyasındaki swap dosyasını aktif ediyoruz,
+-a => all , /etc/fstab dosyasındaki tipi swap olanları sisteme ekle
+-q => quiet , 
+
+
+$ swapinfo -g
+(-g gigabyte , -m megabyte olarak gösteriyor)
+komutu ile aktif edildiğini teyit edebiliriz,
+/dev/ada0p3             8        0        8     0%
+/dev/md28               1        0        1     0%
+Total                   9        0        9     0%
+
+toplam 9GB swap alanımız var,
+
+
+swap dosyasını kaldırmak
+
+// swap dosyasını sistemden kaldırmak için
+# swapoff  /dev/md28
+// md (memory disk) 'leri listeliyoruz
+# mdconfig -l 
+// md aygıtı hala aktif, kaldırmak için
+# mdconfig -d -u 28
+
+$ swapinfo -g
+Device          1G-blocks     Used    Avail Capacity
+/dev/ada0p3             8        0        8     0%
+
+
+şifreli swap dosyası
+swap dosyasındaki bazı hassas bilgileri gizlemek için
+
+// 256MB'lık bir dosya
+# dd if=/dev/random of=/opt/enc.swap1 bs=1m count=256
+
+# mdconfig -a -t vnode -f /opt/enc.swap1
+md1
+
+// mdconfig'in çıktısı önemli 
+# geom eli init md1
+Enter new passphrase: 
+Reenter new passphrase: 
+
+Metadata backup can be found in /var/backups/md1.eli and
+can be restored with the following command:
+
+        # geli restore /var/backups/md1.eli md1
+
+
+herhangi bir şifre veriyoruz
+
+# geom eli attach md1
+Enter passphrase: 
+
+önceki komutta girdiğimiz şifreyi tekrar giriyoruz
+
+# swapon /dev/md1.eli
+
+$ swapinfo -k
+swapinfo -k
+Device          1K-blocks     Used    Avail Capacity
+/dev/ada0p3       8388608        0  8388608     0%
+/dev/md1.eli       262140        0   262140     0%
+Total             8650748        0  8650748     0%
+
+şifreli swap dosyasını kaldırmak için
+
+# swapoff /dev/md1.eli
+# geom eli detach md1
+# mdconfig -d -u 1
+
+------8<--------------------------------------------
+IP aliasing
+
+bir network kartına birden fazla IP tanımlama
+
+komut satırından
+dikkat edilirse alias sırası verilmiyor
+# ifconfig IF_ADI inet 192.168.1.28 255.255.255.255 alias
+ör:
+# ifconfig re0 inet 192.168.1.28 255.255.255.255 alias
+
+kalıcı olması için
+(alias sırası önemli ve sıfırdan başlıyor)
+vim /etc/rc.conf
+ifconfig_IF_ADI_alias0="inet 192.168.1.28 netmask 255.255.255.255"
+
+ör:
+ifconfig_re0_alias0="inet 192.168.1.28 netmask 255.255.255.255"
+ifconfig_re0_alias1="inet 192.168.1.28/32"
+
+eğer alias olarak tanımlanacak ip bir önceki ip ile aynı blokta ise
+netmask'i 255.255.255.255 olarak ( /32 ) tanımlanır, farklı bir blokta ise
+o bloğun netmask'ine uygun olmalıdır
+
+ifconfig'te gösterilen ilk inet alanı arayüzün IP adresini
+eğer varsa diğerleri alias lardır.
+
+alias tanımlarken 0'dan başlayıp sıralı olarak devam etmeli
+eğer sırayı atlarsak atladığımız ve sonrakiler tanımlanmıyor
+ 
+------8<--------------------------------------------
+
+Konsol'dan wan ip adresini bulmak
+
+$ curl ifconfig.me/ip
+
+fetch http://whatismyip.org/
+fetch http://www.cmyip.com
+
+grep My IP Address
+...
+
+------8<--------------------------------------------
+
+/bin/rm: Argument list too long
+
+sebebi
+
+$ getconf ARG_MAX
+262144
+
+bir komuta bu değerden fazla parametre veremeyiz
+
+
+$ cd /dosyaların/silineceği/dizin
+$ find . -type f -print -exec rm {} \; 
+$ find . -type f -print -delete
+
+------8<--------------------------------------------
+
+Windows'ta oluşturulmuş dosyalardaki satır sonundaki ^M karakterlerini kaldırmak
+
+sebebi:
+windows satır sonu için
+\r\n
+UNIX türevleri
+\n
+karakteri kullanıyor
+\r karakterlerini sildiğimizde sadece \n kalıyor
+
+$ tr -d '\r' < WINDOWS_DOSYASI > OLUŞACAK_TEMIZ_DOSYA
+
+------8<--------------------------------------------
+
+$ sysctl -d XXX ile XXX'in açıklamasını görebiliriz,
+-d => description, açıklama
+
+$ sysctl -d kern.maxfiles
+kern.maxfiles: Maximum number of files
+
+------8<--------------------------------------------
+
+Freebsd Upgrade
+
+# freebsd-update upgrade -r 10.0
+# freebsd-update install
+# shutdown -r now
+# freebsd-update install
+burada bütün portları yeniden kurmak gerekebilir
+# shutdown -r now
+# freebsd-update install
+
+portlarıda güncellemek gerekiyor (/usr/ports , portsnap)
+
+------8<--------------------------------------------
+
+bir ağ arayüzüne başka bir ad vermek için
+
+/etc/rc.conf'ta
+
+# ifconfig_re0_name="dmz2"
+# ifconfig_dmz2="192.168.1.2 netmask 255.255.255.0"
+# ifconfig_dmz2_alias0="192.168.1.3/32"
+
+
+komut satırından
+# ifconfig re0 name main_if
+...
+
+
+------8<--------------------------------------------
+
+bir ip adresine hangi gateway'den hangi arayüzden gidileceğini sorgulama için
+
+$ route get IP
+
+ör:
+$ route get 8.8.8.8
+   route to: google-public-dns-a.google.com
+destination: default
+       mask: default
+    gateway: 192.168.1.1
+        fib: 0
+  interface: re0
+      flags: <UP,GATEWAY,DONE,STATIC>
+ recvpipe  sendpipe  ssthresh  rtt,msec    mtu        weight    expire
+       0         0         0         0      1500         1         0 
+
+------8<--------------------------------------------
+
+özel ağlar
+(private networks)
+
+A Class -> 10.0.0.0    => 10.255.255.255  -> 10.0.0.8/8     (255.0.0.0)   -> 24 bits -> 16.777.216 adres
+B Class -> 172.16.0.0  => 172.31.255.255  -> 172.16.0.0/12  (255.240.0.0) -> 20 bits -> 1.048.576 adres
+C Class -> 192.168.0.0 => 192.168.255.255 -> 192.168.0.0/16 (255.255.0.0) -> 16 bits -> 65.536 adres
+
+------8<--------------------------------------------
+iso dosyasını mount etmek
+
+# mdconfig -a -t vnode -f image.iso
+md1
+# mount -t cd9660 /dev/md1 /mnt/
+$ ls -al /mnt
+$ mount
+/dev/md1 on /mnt (cd9660, local, read-only)
+
+
+kaldırmak için
+# cd /
+# umount /mnt
+# mdconfig -d -u 1
+
+# mdconfig -l
+komutu ile md1'in kaldırıldığı teyit edebiliriz
+
+md sürücülerini listeler
+
+md = memory disk
+
+------8<--------------------------------------------
+iperf
+
+# cd /usr/ports/benchmarks/iperf
+# make install clean
+
+sunucu tarafında
+# iperf -s -B 10.21.111.100
+
+istemci tarafında
+# iperf -c 10.21.111.100 -d -t 60 -i 10
+
+-s : run in server mode
+-B : IP bind to IP
+-c IP : run in client mode, connecting to IP
+-d : Do a bidirectional test simultaneously
+-t 60 : time in 60 seconds to transmit for.
+-i 10 : pause 10 seconds between periodic bandwidth reports.
+
+------8<--------------------------------------------
+webbench
+# cd /usr/ports/benchmarks/webbench 
+# make install clean
+
+$ webbench -c 3000 -t 60 http://localhost/index.php
+
+------8<--------------------------------------------
+# pkg install wrk
+
+-c, --connections: total number of HTTP connections to keep open with
+                   each thread handling N = connections/threads
+
+-d, --duration:    duration of the test, e.g. 2s, 2m, 2h
+
+-t, --threads:     total number of threads to use
+
+-s, --script:      LuaJIT script, see SCRIPTING
+
+-H, --header:      HTTP header to add to request, e.g. "User-Agent: wrk"
+
+    --latency:     print detailed latency statistics
+
+    --timeout:     record a timeout if a response is not received within
+                   this amount of time.
+
+
+$ wrk -t12 -c400 -d30s http://127.0.0.1:8080/index.html
+
+------8<--------------------------------------------
+
+man dosyalarında arama
+
+$ apropos XXX
+XXX kelimesinin geçtiği man dosyalarını ara
+
+yada 
+$ whatis XXX
+ile sistemdeki XXX kelimesi geçen man dosyalarını tarayarak
+bulduklarının NAME kısmını görüntüler
+
+aralarındaki fark apropos tüm man dosyalarında like benzeri arama yaparken
+whatis bire bir kelimeyi arar
+
+$ apropos XXX
+ile 
+$ man -k XXX
+aynı işlevi yerine getirir,
+
+
+man sections
+
+1. General user commands 
+2. System calls and error numbers 
+3. C programming libraries 
+4. Devices and device drivers 
+5. File formats
+6. Game instructions
+7. Miscellaneous information
+8. System maintenance commands
+9. Kernel interfaces
+
+
+------8<--------------------------------------------
+
+freebsd'de sistemi 
+# shutdown -h now
+-h => halt
+komutu ile kapatmaya çalışırsak sistem kapanır fakat power'ı kapatmak için
+
+# shutdown -p now
+-p => poweroff
+
+komutunu çalıştırmak gerekir,
+
+yeni sistemlerde
+# poweroff
+komutu aynı işlevi görür,
+
+------8<--------------------------------------------
+
+nc - netcat
+
+$ nc -l 1234
+ile makinanın 1234 nolu portunu dinler (sunucu mantığı)
+herhanbi bir istemci makinada
+telnet NC_CALISAN_MAINA_IPSI 1234
+yazılırsa karşılıklı bir bağlanatı oluşur,
+
+$ nc -z HEDEF_MAKINA PORT_YADA_PORT_ARALIGI
+ör:
+$ nc -z 192.168.1.2 22
+$ nc -z 192.168.1.2 1-1024
+
+şeklinde kullanımda port yada verilen port aralığı taranır,
+-z bayrağı ile data gönderilmez sadece portun açık olup olmadığına bakılır
+
+------8<--------------------------------------------
+sorun:
+managed-keys-zone ./IN: loading from master file managed-keys.bind failed: file not found
+
+çözüm:
+# touch /var/named/etc/namedb/working/managed-keys.bind
+
+------8<--------------------------------------------
+
+TIME_WAIT bağlantıların azaltılması
+
+msl = Maximum Segment Lifetime
+
+sysctl net.inet.tcp.msl
+varsayılan değeri = 30000
+bu değerin iki ile çarpılması bize milisaniye değerini veriyor,
+yani 60000 bu değeride saniyeye çevirirsek
+60 saniye 
+yani bir bağlantı kurulup kapatıldığında, kullanıcıdan diğer bir istek gelene kadar
+socket 60 saniye (1 dakika) TIME_WAIT durumunda bekletiliyor,
+eğer bir yanıt gelmezse sonlandırılıyor,
+
+
+net.inet.tcp.msl=7500
+redis'te bağlantı hataları verdi
+dikkatli kullanılması lazım.
+
+------8<--------------------------------------------
+
+Gelen ve giden paketlerini (rx , tx) görmek için
+
+netstat -i -b -n -h
+-h => human readable
+-i => tüm interfaceler
+-b => byteları in ve out olarak göster
+-n => hostname çözümlemesi yapma
+
+netstat -b -n -h -I em0
+-I => sadece em0 interface'i
+
+------8<--------------------------------------------
+
+named-checkconf
+
+komutu ile conf dosyasını check edebiliriz
+
+named-checkconf /etc/namedb/named.conf
+
+değişiklikleri aktifleştirmek için
+rndc reload SITE
+
+------8<--------------------------------------------
+
+örnek bir spf kaydı 
+
+example.com.            300     IN      TXT     "v=spf1 ip4:12.34.56.78 ip4:32.43.43.3 ip4:23.44.55.77 a mx ~all"
+
+------8<--------------------------------------------
+
+named.conf dosyasına
+
+zone "example.com" {
+        type master;
+        file "/etc/namedb/master/example.com";
+};
+
+
+dikkat edilirse full path yazılıyor,
+
+örnek bir zone dosyası
+
+=BEGIN
+;$TTL 3600
+$TTL 3D
+
+;example.com. IN      SOA     ns1.example.com. admin.example.com. (
+;example.com. IN      SOA     nsa1.example.com. abc.example.com. (
+@               IN      SOA     ns1.example.com. abc.example.com. (
+                                21201
+                                8H ;10800
+                                2D;3600
+                                4W;604800
+                                1D;300
+                                )
+
+                IN      NS      ns1.example.com.
+
+                IN      TXT     "naber"
+
+; ilginc olan 10 yazmazsan hata veriyor
+                IN      MX 10   mail.example.com.
+
+;               IN      A       192.168.1.3
+example.com.  IN      A       192.168.1.3
+
+ns1             IN      A       192.168.1.14
+mail            IN      A       192.168.1.4
+www             IN      CNAME   example.com.
+=END
+
+named-checkzone example.com master/example.com
+
+------8<--------------------------------------------
+
+Subversion backup restore
+
+$ svnadmin dump /path/to/reponame > /tmp/reponame.dump
+
+eğer yeni bir yere restore ediliyorsa yoksa
+$ svnadmin create /path/to/reponame
+
+$ svnadmin load /path/to/reponame < /tmp/reponame.dump
+
+$ chown -R svn:svn /svnroot/repository
+yada hangi kullanıcı ile oluşturuldu ise
+
+config dosyaları yedeklenmiyor
+tekrar düzenlenmesi gerekiyor
+
+------8<--------------------------------------------
+bash - yada sh
+export EDITOR=vim
+
+csh
+setenv EDITOR vim
+
+------8<--------------------------------------------
+hostid - daha çok lisanslama amaçlı kullanılıyormuş
+
+cat /etc/hostid
+sysctl kern.hostuuid 
+
+------8<--------------------------------------------
+
+/dev/stdin -> /dev/fd/0
+/dev/stdout -> /dev/fd/1
+/dev/stderr -> /dev/fd/2
+
+sembolink link olarak bu dosyalara başlanmışlar
+
+------8<--------------------------------------------
+
+whole disk in partition
+
+BSD labels'ta
+c 
+yani 
+/dev/ad0s1c
+
+GPT'de
+3. bölüm
+yani
+/dev/ada0p3
+
+tüm diski temsil ediyor
+
+------8<--------------------------------------------
+
+loaded kernel modules 	
+$ kldstat
+$ kldstat -v => her modülün alt modülleride olabilir onlarıda listeliyor
+
+bir modülü yüklemek - load module 	
+# kldload /boot/kernel/pf.ko
+# kldload pf.ko
+# kldload pf
+
+üçüde aynı işlevi görüyor
+
+/boot/loader.conf'tan modül yüklemek için
+
+/boot/kernel/*.ko
+yada
+/boot/modules/*.ko
+dosyalarından yüklenecek olan alınır
+
+ör: /boot/kernel/acpi_video.ko
+dosya adı : acpi_video.ko
+.ko çıkartılır
+acpi_video
+sonuna _load="YES" eklenir
+acpi_video_load="YES"
+bu haliyle 
+/boot/loader.conf'a eklenir
+# echo 'acpi_video_load="YES"' >> /boot/loader.conf
+
+bir modülü kaldırmak için 
+# kldunload MODULE_ADI
+
+
+------8<--------------------------------------------
+
+sistem açılırken program çalıştırılmak için bakılan dizinler
+tabiki /etc/rc.conf'ta enable olması yada 755 hakkı olması lazım
+
+sistem'le birlikte gelenler
+/etc/rc.d/*
+
+ports yada pkg ile kurulan yada bizim oluşturduğumuz
+/usr/local/etc/rc.d/*
+
+ve 
+/etc/rc.conf'ta
+tanımlanmış
+local_startup="${local_startup} XXX"
+
+dizinlerine bakılır
+
+------8<--------------------------------------------
+run levels - init
+
+0: halt and power off
+1: single-user mode
+6: reboot
+c: block further logins
+q: rescan ttys(5) file
+
+Run-level    Signal     Action
+0            SIGUSR1    Halt
+0            SIGUSR2    Halt and turn the power off
+1            SIGTERM    Go to single-user mode
+6            SIGINT     Reboot the machine
+c            SIGTSTP    Block further logins
+q            SIGHUP     Rescan the ttys(5) file
+
+$ man init
+
+
+kernel security levels:
+-1*: permanently insecure
+0: insecure
+1: secure
+2: highly secure
+3: network secure
+
+
+securelevel'i görüntülemek için
+$ sysctl kern.securelevel
+
+$ man securelevel
+
+------8<--------------------------------------------
+
+bind process to CPU 	
+
+# cpuset -c -l 0-1 /usr/bin/top
+
+$ man cpuset
+
+------8<--------------------------------------------
+
+hızlı dosya oluşturma
+
+$ truncate -s size[K|M|G] filename
+ör 1 GB'lık bir dosya
+$ truncate -s 1G abc
+
+$ dd if=/dev/zero of=filename bs=size[b|k|m|g] count=desired
+ör: 100MB'lık bir dosya
+$ dd if=/dev/zero of=abc bs=1m count=100
+$ dd if=/dev/random of=xyz bs=1m count=10
+
+------8<--------------------------------------------
+
+mount CDROM 	
+
+mount /cdrom
+mount_cd9660
+
+# camcontrol eject devID
+# camcontrol eject cd0
+# cdcontrol eject [-f device] 
+
+cdrom'u mount için
+# mount_cd9660 /dev/acd0c /cdrom
+
+cd unmount ve eject için
+
+# umount /cdrom
+# cdcontrol -f /dev/acd0c eject
+
+------8<--------------------------------------------
+
+iso dosyası oluşturmak için
+
+bu komut ile /opt dizinini iso dosyası yapıyor
+
+# mkisofs -o opt.iso /opt/
+-o oluşacak iso dosyasının adı 
+
+eski sistemler'de dosya uzunluğu sınırlaması vardır FILE~ gibi olanlar için
+
+# mkisofs -U -o opt.iso /opt/
+-U ile dosya adı kısıtlamalarını kaldırır
+
+oluşturulan iso dosyası sistem'de bir memory diske mount edilebilir
+
+# mdconfig -f abc.iso
+md1
+
+# mount -t cd9660 /dev/md1 /mnt
+yada
+# mount_cd9660 /dev/md1 /mnt
+
+çıkartmak için
+# umount /mnt
+# mdconfig -d -u 1
+yada
+# mdconfig -d -u md1
+
+------8<--------------------------------------------
+
+FreeBSD'de cd yazmak için
+
+# cd /usr/ports/sysutils/cdrtools
+# make install clean
+
+# pkg install cdrtools
+
+# cdrecord -scanbus
+ile sistemde takılı olan cd / dvd sürücüleri listeler
+örnek çıktı,
+
+=BEGIN
+Cdrecord-ProDVD-ProBD-Clone 3.01 (amd64-unknown-freebsd11.0) Copyright (C) 1995-2015 Joerg Schilling
+Using libscg version 'schily-0.9'.
+scsibus0:
+        0,0,0     0) '' '' '' NON CCS Disk
+        0,1,0     1) *
+        0,2,0     2) *
+        0,3,0     3) *
+        0,4,0     4) *
+        0,5,0     5) *
+        0,6,0     6) *
+        0,7,0     7) *
+scsibus1:
+        1,0,0   100) 'ASUS    ' 'DRW-20B1ST      ' '1.00' Removable CD-ROM
+        1,1,0   101) *
+        1,2,0   102) *
+        1,3,0   103) *
+        1,4,0   104) *
+        1,5,0   105) *
+        1,6,0   106) *
+        1,7,0   107) *
+=END
+
+burada bizim CD' miz 1,0,0 'da 
+
+sonuç olarak bizim komutumuz
+
+# cdrecord dev=1.0.0 imagefile.iso
+
+$ camcontrol devlist
+ile tüm sürücüleri görebiliriz (diskler dahil)
+
+------8<--------------------------------------------
+mauel olarak DHCP'den IP almak
+
+# dhclient IF_NAME
+
+# dhclient re0
+------8<--------------------------------------------
+
+------8<--------------------------------------------
+kullanıcılara class tanımlama
+/etc/login.conf
+
+cputime = bir processin en fazla kullanabileceği CPU time
+filesize = kullanıcının oluşturabileceği en büyük dosya boyutu
+datasize = bir processin kullanabileceği en fazla data size (bu data segment mi)
+stacksize = bir processin kullanabileceği en fazla stack alanı
+coredumpsize 
+memoryuse
+maxproc = bir kullanıcının aynı anda çalıştırabileceği en fazla process sayısı
+openfiles = bir process'in açabileceği en fazla dosya sayısı
+sbsize = socket buffer size
+
+
+maxproc:
+maxproc-cur
+maxproc-max
+
+
+bu dosyadaki güncellemeler kullanıcı sisteme girdiğinde aktif oluyor,
+login olmuş kullanıcı çıkıp yeniden girmeli,
+yada bir daemon yeniden başlatılmalı
+
+sistem conf dosyasını değil db dosyasını kullandığından
+dosyada değişiklik yapıldıktan sonra
+cap_mkdb /etc/login.conf 
+ile /etc/login.conf.db
+db'si yeniden oluşturuluyor
+
+
+zsh shelli login.conf'ta tanımlanan ortam değişkenlerini dikkate almıyor
+illa .profile dosyasında istiyor
+
+~ => kullanıcı ev /home/XXX dizini
+$ => kullanıcı adı
+
+ör:
+	setenv=MAIL=/var/mail/$
+	path=/sbin ~/bin
+
+
+ortam değişkenleri
+hushlogin
+ignorenologin : kullanıcının shell'i /var/run/nologin olsa bile sisteme giriş yapabiliyor
+	kullanıcının giriş işlemlerinde ilk önce /var/run/login dosyasına bakılıyor
+	bu dosya normal bir text dosyası ve içerisine bakım var sonra deneyin vs gibi mesaj yazabiliyoruz
+	bu dosya varsa normal bir kullanıcıya dosyadaki mesaj gösterilip dosya silinene kadar logine izin verilmez
+	ignorenologin ile bu dosya olsa bile sisteme giriş yapabilir
+ftp-chroot
+manpath : $MANPATH
+nologin: kullanıcı login olamıyor
+path : $PATH değişkeni
+priority: sınıfa ait olan kullanıcıların çalıştıracağı processlerin nice değeri
+setenv: virgül ile ayrışlmış değişkenler
+umask
+welcome: welcome mesaj yolu
+shell: $SHELL değişkeni
+term: varsayılan terminal tipi
+timezone : varsayılan $TZ
+
+diğer login.conf değişkenleri
+
+minpasswordlen
+passwd-format
+mixpasswordcase
+times.allow : hangi gün ve saatlerde sisteme giriş yapabilir
+	günler: Su Mo Tu We Th Fr Sa
+	Saatler: 24 saatlik zaman dilimi
+
+	:times.allow=We9-18:\
+
+times.deny: times.allow ile aynı formatta, belirtilen saatlerde giriş yapamaz
+
+hushlogin
+
+touch ~/.hushlogin
+
+Immediately after logging a user in, login displays the system copyright
+notice, the date and time the user last logged in, the message of the day
+as well as other information.  If the file .hushlogin exists in the
+user's home directory, all of these messages are suppressed.  This is to
+simplify logins for non-human users, such as uucp(1).
+
+man login.conf
+
+şifreyi kaç defa deneyebilir
+3 defa şifreyi yanlış girse ne kadar beklesin 
+ayda en fazla kaç defa login olabilsin
+günde en fazla kaç defa login olabilsin
+şu kadar idle beklerse logout olsun
+şifresi şu kadar zaman aktif olsun sonra yenilensin
+şifresinde hep küçük karakter kullanmasın
+vs gibi birçok değer var
+
+------8<--------------------------------------------
+bir kullanıcı sisteme girmek istediğinde FreeBSD /etc/login.access dosyasını kontrol eder
+
+
+/etc/login.access
+/etc/ttys
+
+man login.access
+
+/etc/login.access
+formatı
+1:2:3
+
+1-> - yada +, -=DENY +=ALLOW
+2-> USER yada GROUP , ALL, ALL EXCEPT XXX
+3-> console, hostname , host address domain name,LOCAL,ALL
+
+bu dosyada her satırda bir kural var
+pf'nin tersi olarak ilk kural geçerli oluyor
+
+ör:
+-:ALL EXCEPT wheel:console
+console'dan wheel grubuna üye olanlar hariç kimse giremiyor
+
++:wheel:console
+-:ALL:console
+
+ile birinci örnek aynı
+
+-:ALL EXCEPT wheel:example.com
+-:ALL EXCEPT wheel:192.168.1.5
+-:ALL EXCEPT wheel:192.168.1.
+son örnekte blok sınırlaması var
+
+-:ALL EXCEPT wheel:ALL EXCEPT 192.168.1.5 192.168.1.6
+
+-:ALL EXCEPT wheel:ALL
+sisteme wheel grubu üyeleri hariç kimse giremesin
+
+-:ALL EXCEPT wheel:console
+-:ALL EXCEPT wheel muhasebe pazarlama:ALL
+------8<--------------------------------------------
+configure/show runtime linking
+
+ldd
+ldconfig
+kldstat 
+
+compiler flag (position independent code) => -fPIC
+shared library creation flag => -shared
+shared library creation (C++) => g++ -fPIC -shared -o
+static archiver (C++) => ar
+library name => (ld option) -soname name
+file extension  => .so
+executable link options => -Bdynamic -Lpath -lname
+runtime path specification => -rpath <path>
+Does not build the path for shared libraries into the executable => default
+controlling symbols => using a script file (see "info ld")
+exports file/link option => using a script file (see "info ld")
+hiding symbols => using a script file: VERSION command (see "Version Script" section in "info ld")
+runtime library path => LD_LIBRARY_PATH
+symbol binding => -Bsymbolic
+runtime debugging => LD_BIND_NOW , LD_TRACE_LOADED_OBJECTS, LD_DEBUG=help , ltrace
+runtime preload => LD_PRELOAD
+loader => ld.so
+versioning => using a script file: VERSION command (see "info ld")
+dynamic loading / dynamic symbol access => dlopen / dlsym
+utilities => ldd, ldconfig, objdump, ltrace, readelf
+
+------8<--------------------------------------------
+
+man dosyasını ps yada pdf olarak kaydetmek
+
+ps olarak kaydetmek için
+
+$ man -t SUBJECT  > FILE.ps
+ör:
+$ man -t csh > csh.ps
+
+pdf için ps2pdf programına ihtiyacımız var
+# pkg install gspdf
+
+$ man -t csh | ps2pdf - csh.pdf
+
+------8<--------------------------------------------
+
+bu vim için
+
+putty de yanlışlıkla ctrl+s tuşuna basılırsa
+kurtarmak için ctrl+q ya basınız
+
+------8<--------------------------------------------
+
+default route'u değiştiriyor
+route change default 192.168.1.2
+
+------8<--------------------------------------------
+SSH ile uzak bir sunucuda uzun süreli çalışmalarda
+bazan terminal'den hiç bir şey yapılmadan beklenebiliyor
+örneğin yadek almak vs gibi
+uzun süreli veri akışı olmaz ise ssh bağlantıyı sonlandırabiliyor 
+bağlantı kopmasının önlenmesi için
+sunucu tarafında
+
+# vim /etc/ssh/sshd_config 
+ClientAliveInterval 600
+ClientAliveCountMax 6
+
+# service sshd reload
+
+değişikliklerin aktif olduğunu
+
+# sshd -T | grep alive
+
+ile kontrol edebiliriz
+
+------8<--------------------------------------------
+tmpfs kullanımı
+
+zorunlu değil
+# echo 'tmpfs_load="YES"' >> /boot/loader.conf
+
+mkdir /cache
+
+# vim /etc/fstab
+tmpfs           /cache          tmpfs   rw,mode=777,size=2G     0       0
+
+------8<--------------------------------------------
+
+default route'u değiştiriyor
+
+route change default 192.168.1.2
+
+------8<--------------------------------------------
+
+netstat -s |grep "connections established"
+
+netstat -s | egrep 'retrans|drop|out-of-order|memory problems|overflow'
+netstat -s | egrep 'bad|checksum'
+
+netstat -sp udp
+
+------8<--------------------------------------------
+login olamayan bir kullanıcının (shell'i no login olarak tanımlanmış)
+hakları ile bir komut çalıştırmak için
+
+# su -m USER -c 'crontab -e'
+# su -m munin -c 'setenv EDITOR vim && crontab -e'
+
+------8<--------------------------------------------
+$ /usr/bin/netstat -i -b -n -I em0
+Name    Mtu Network       Address              Ipkts Ierrs Idrop     Ibytes    Opkts Oerrs     Obytes  Coll
+em0    1500 <Link#2>      5c:f3:fc:29:f5:1b 48528752208 30073     0 47768094887919 36442911632     0 43637346887952     0
+em0    1500 10.0.0.0/8    10.0.0.21         38903185743     -     - 46381147647061 56459099766     - 43124580785334     -
+em0    1500 fe80::5ef3:fc fe80::5ef3:fcff:f        0     -     -          0        2     -        152     -
+em0    1500 10.0.0.0/8    10.0.0.35         9327648529     -     - 674533926108        0     -          0     -
+
+------8<--------------------------------------------
+
+boş bir dosya oluşturmak için
+(sh ve csh'da çalışıyor)
+eğer dosya varsa siliniyor
+
+$ : > dosya
+$ touch dosya
+
+------8<--------------------------------------------
+bir sunucuda birden fazla intel gigabit ethernet
+varsa hangisi em0 hangisi em1 anlamak için
+ethernet kartının üzerindeki led'i yanıp söndürüyor
+
+Make the identification LED of em0 blink:
+# echo f2 > /dev/led/em0
+
+Turn the identification LED of em0 off again:
+# echo 0 > /dev/led/em0
+
+------8<--------------------------------------------
+
+anlık trafik
+
+$ netstat -bdhI em0 1
+
+
+ input          (em0)           output
+   packets  errs idrops      bytes    packets  errs      bytes colls drops
+      3.1k     0     0       3.2M       2.1k     0       2.5M     0     0
+      2.2k     0     0       1.9M       1.5k     0       2.5M     0     0
+      2.6k     0     0       2.4M       1.8k     0       2.8M     0     0
+      3.6k     0     0       4.2M       2.5k     0       2.3M     0     0
+      2.2k     0     0       1.9M       1.5k     0       2.2M     0     0
+
+------8<--------------------------------------------
+intel gigabit ethernet kayıp paket istatistiği
+ 
+$ sysctl dev.em.0.mac_stats.missed_packets
+
+------8<--------------------------------------------
+intel gigabit için iyileştirme
+
+# vim /boot/loader.conf
+hw.em.rx_process_limit=4096
+
+# vim /etc/sysctl.conf
+dev.em.0.rx_processing_limit=4096
+dev.em.1.rx_processing_limit=4096
+
+------8<--------------------------------------------
+bridge mtu
+burada up ifadesi yazmak isek çalışmıyor
+
+ifconfig_em0="mtu 9000 up"
+ifconfig_em3="mtu 9000 up"
+cloned_interfaces="bridge0"
+ifconfig_bridge0="inet 192.168.1.11 netmask 255.255.255.0 mtu 9000 addm em0 addm em3 up"
+
+------8<--------------------------------------------
+bash ve csh'da alias tanımlama
+
+bash'de
+
+alias lf="ls -FA"
+alias ll="ls -lA"
+alias su="su -m"
+alias vi="vim"
+alias dir="ls -alFG"
+
+csh ve tcsh'de
+
+alias lf ls -FA
+alias ll ls -lA
+alias su su -m
+
+şeklinde
+
+bir aliası kaldırmak için
+unalias aliasname
+ör:
+unalias lf
+
+------8<--------------------------------------------
+plain binary 
+
+=BEGIN
+section .data
+
+message:
+    db      'hello, world!', 0
+
+section .text
+
+global _start
+_start:
+    mov     rax, 4
+    mov     rdi, 1
+    mov     rsi, message
+    mov     rdx, 13
+    syscall
+
+    mov     rax, 1
+    xor     rdi, rdi
+    syscall
+
+=END
+
+$ nasm -f elf64 -o test.o test.asm
+$ ld -o test test.o
+
+------8<--------------------------------------------
+
+tüm default versiyonları 
+
+/usr/ports/Mk/bsd.default-versions.mk
+dosyasında bulabiliriz
+
+
+ports'tan postgresql versiyonunu değiştirmek için
+sadece ports'u etkiliyor
+
+
+# vim /etc/make.conf
+=BEGIN
+DEFAULT_VERSIONS=pgsql=9.6
+DEFAULT_VERSIONS=python=2.7 python2=2.7 python3=3.3
+DEFAULT_VERSIONS=berkeleydb=41+ sqlite=3 firebird=25
+=END
+
+
+FreeBSD ports'ta güncelleme olduğunda,
+ör : subversion 1.8 çıktığında 
+/usr/ports/devel/subversion
+1.8 versiyonuna bakıyor,
+eğer upgrade etmek istemiyorsak,
+
+
+# vim /etc/make.conf
+=BEGIN
+WITH_SUBVERSION_VER=17
+=END
+
+# pkg set -o devel/subversion:devel/subversion17
+or
+# portmaster -o devel/subversion17 devel/subversion
+
+şeklinde portsnap güncellemelerinde 1.7 nin güncellemesi var ise bizi uyaracaktır,
+
+------8<--------------------------------------------
+
+mevcut md5 şifrelemesini blowfish yapmak için
+
+/etc/login.conf dosyasındaki
+:passwd_format=md5:\ 
+satırını
+:passwd_format=blf:\ 
+
+olarak değiştirelim,
+
+# cap_mkdb /etc/login.conf
+
+/etc/auth.conf dosyasındaki
+crypt_default = XXX
+şeklindeki satırı yorumunu kaldırarak
+crypt_default = blf
+
+yada
+
+# echo "crypt_default=blf" >> /etc/auth.conf
+
+şeklinde kaydederiz
+
+passwd komutu ile şifremizi yeni cryto ile oluştururuz
+
+------8<--------------------------------------------
+
+Yeni derlenen kernel ile sistem açılmıyorsa
+sistem açılırken menu'den loader'a girilir
+
+>unload
+ok
+>load /boot/kernel.old/kernel.ko
+>ok
+>boot
+
+komutları ile önceden çalışan kernel ile sistemi açmaya çalışırız,
+
+------8<--------------------------------------------
+
+S.M.A.R.T kurulumu
+
+# cd /usr/ports/sysutils/smartmontools 
+# make install clean
+
+yada
+
+# pkg install smartmontools
+
+# cp /usr/local/etc/smartd.conf.sample /usr/local/etc/smartd.conf
+# vim /usr/local/etc/smartd.conf
+=BEGIN
+/dev/ad0 -S on -o on -a -I 194 -m admin@howtobsd.com
+/dev/ad4 -S on -o on -a -I 194 -m admin@howtobsd.com
+=END
+
+# echo 'smartd_enable="YES"' >> /etc/rc.conf
+# echo 'smartd_flags="-l local2 --interval=300"' >> /etc/rc.conf
+
+
+yada
+
+# sysrc smartd_enable=YES
+
+# service smartd start
+
+# smartctl -H /dev/ada0
+# smartctl -a /dev/ada0
+# smartctl -x /dev/ada0
+
+# vim /etc/periodic.conf
+=BEGIN
+daily_status_smart_devices="/dev/ada0"
+yada
+daily_status_smart_devices="/dev/ad4 /dev/ad8 /dev/ad10"
+=END
+
+------8<--------------------------------------------
+
+reverse dns sorgusu
+yani ip'den host bulma
+
+$ dig -x IP
+$ drill -x IP
+
+NOT: bind artık default değil dig komutu için bind-tools'i yüklemek gerekiyor
+
+------8<--------------------------------------------
+
+sistem beklenmedik bir şekilde kapanırsa başlangıçta çalışan fsck nın tüm sorularına 
+yes demek için
+
+# sysrc fsck_y_enable=YES
+
+manuel olarak
+
+# fsck -yf /dev/XXX
+
+komutu ile istenilen bölüm kontrol edilir,
+-y => yes
+-f => force
+
+eğer dosya sisteminde bir bozukluk var ise 
+kurtarılabilen kısımlar lost+found dizinlerinde bulunabilir,
+
+------8<--------------------------------------------
+NFS Server kurulumu
+
+server
+
+# vim /etc/rc.conf
+=BEGIN
+rpcbind_enable="YES"
+nfs_server_enable="YES"
+mountd_enable="YES"
+mountd_flags="-r"
+=END
+
+
+# vim /etc/exports
+=BEGIN
+/opt/backups -maproot=root:wheel -network=192.168.2.0 -mask=255.255.255.0
+#/opt/backups -ro -maproot=root:wheel -network=192.168.1.0 -mask=255.255.255.0
+#/opt/backups -maproot=root -network=192.168.1.0 -mask=255.255.255.0
+#/mails/backups -maproot=root 10.0.0.18
+=END
+
+# /etc/rc.d/rpcbind start
+# /etc/rc.d/nfsd start
+# /etc/rc.d/mountd start
+
+
+
+client
+
+# vim /etc/rc.conf
+nfs_client_enable="YES"
+
+showmount komutu ile nfs'deki export'ları görebiliriz,
+
+showmount -e host_yada_ip_adresi
+ör:
+# showmount -e 192.168.2.31
+Exports list on 192.168.2.31:
+/data/backups                      192.168.2.0
+
+
+# mount 192.168.2.31:/opt/backups /mnt
+
+# vim /etc/fstab
+=BEGIN
+192.168.2.31:/opt/backups /mnt  nfs     rw,rsize=32768,wsize=32768      0       0
+=END
+
+# mount /mnt
+# umount /mnt
+
+/etc/pf.conf
+=BEGIN
+nfs_ports="{111,698,1110,2049,4045}"
+
+pass in on $my_if proto udp from any to ($my_if) port $nfs_ports
+pass in on $my_if proto tcp from any to ($my_if) port $nfs_ports
+=END
+
+NFS share definitions 	
+
+/etc/exports
+
+NFS share command 	
+
+# kill -s HUP `cat /var/run/mountd.pid`
+
+NFS information 	
+# nfsstat
+
+name resolution order 	
+
+/etc/host.conf (4-)
+/etc/nsswitch.conf (5+)
+
+------8<--------------------------------------------
+
+tcsh'da 
+set autologout = 30
+komutu ile bir oturumda 30 dakika işlem yapılmazsa otomatik olarak logout oluyor,
+
+konsole'daki beep seslerini iptal etmek için
+set nobeep
+
+komut tamamlamayı etkinleştirmek için
+set filec
+
+bir kişi sisteme girdiğinde yada çıktığında uyarılmak için
+set watch = (0 any any)
+
+------8<--------------------------------------------
+
+shell'de 
+$ cd -
+
+ile bir önceki dizine 
+geçilebilir
+
+ör:
+
+$ cd /usr
+$ cd /home
+$ cd -
+$ pwd
+/usr
+
+------8<--------------------------------------------
+-n dns sorgularını yapmaz 
+
+belirtilen ip yada bloktan gelen 
+syslogd_flags=" -a 10.0.10.0/24:*"
+
+flags
+-ss => udp socketleri oluşturulmaz normalde 514 nolu portu dinliyor,
+	secure mode, tek s network'tan gelen istekleri kabul etmez (port açık)
+	çift s portu'da açmak
+-a  => ör "-a 10.0.10.0/24:*" ile verilen bloktaki bir makina bu sunucuya log yollayabilir
+	en sondaki yıldız servisleri ifade ediyor,
+	allowed-peer 
+
+man syslogd
+
+
+------8<--------------------------------------------
+
+/etc/syslog.conf
+local2.*	/var/log/syslogtest.log
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <syslog.h>
+
+int main()
+{
+        openlog("syslogtest" , LOG_PID | LOG_NDELAY , LOG_LOCAL2);
+
+        syslog(LOG_ALERT,"alert test");
+        syslog(LOG_INFO,"info test");
+
+// emerg consolada yazılıyor
+        syslog(LOG_EMERG,"emerg test");
+        syslog(LOG_CRIT,"crit test");
+        syslog(LOG_ERR,"err test");
+        syslog(LOG_WARNING,"warning test");
+        syslog(LOG_NOTICE,"notice test");
+        syslog(LOG_DEBUG,"debug test");
+
+        closelog();
+
+        return EXIT_SUCCESS;
+}
+
+------8<--------------------------------------------
+sistemin desteklediği signal'leri listelemek için
+
+$ kill -l
+HUP INT QUIT ILL TRAP ABRT EMT FPE KILL BUS SEGV SYS PIPE ALRM TERM URG STOP
+TSTP CONT CHLD TTIN TTOU IO XCPU XFSZ VTALRM PROF WINCH INFO USR1 USR2 LWP
+
+------8<--------------------------------------------
+
+sistemin desteklediği zamanlayıcıları listelemk için
+(event timers)
+
+$ sysctl kern.eventtimer.choice
+kern.eventtimer.choice: LAPIC(600) HPET(550) i8254(100) RTC(0)
+
+------8<--------------------------------------------
+
+GDB
+
+bir programı debug etmek gerektiğinde, debug sembollerini içermesi için 
+derlerken -g anahtarı ile derlemek gerekiyor,
+
+$ gcc -Wall -g test.c -o test
+
+gdb'yi başlatmak için
+
+$ gbd program_adi
+
+$ gdb xyz
+
+sonra promt'a düşüyoruz
+(gdb)
+
+
+breakpoint koymak için
+(gdb) break main
+yada
+(gdb) b main
+
+programı başlatmak için
+(gdb) run
+yada
+(gdb) r
+
+bir değişken hakkında bilgi almak için
+(gdb) print i
+yada
+(gdb) p i
+
+
+değişkenin 
+değeri : p i
+adresi : p &i
+tipi   : ptype i yada pt i
+size'ı : p sizeof(i)
+
+
+bir process hatalı bir işlem gerçekleştiğinde 
+işletim sistemi tarafından sonlandırılır
+eğer coredump özelliği açıksa bir coredump oluşturulur
+
+
+gdb /usr/local/bin/memcached /usr/local/bin/memcached.core
+
+komutu ile process'i başlarıp
+gdb nin bt (back trace) komutu ile nerede hata verdiğini bulabiliriz,
+
+(gdb) bt 
+(gdb) q
+
+
+sistem göçen programların loglarını
+sysctl kern.corefile: %N.core
+ile belirtilen yere saklar
+
+$ man core
+------8<--------------------------------------------
+
+lptcontrol programı ile yazıcıların (lpt) ayarları değiştirilebilir
+
+$ man lptcontrol
+------8<--------------------------------------------
+
+bir kullanıcıyı bir guruba üye yapmak için
+
+# pw groupmod GROUPNAME -m USERNAME
+# pw groupmod operator -m testuser
+# su - testuser
+$ groups testuser
+
+# pw groupmod wheel -M sternix
+
+------8<--------------------------------------------
+
+bir kullanıcının scanner'ı kullanabilmesi için
+(normalde root kullanıcısı ve operator grubu yetkilendirilmiş 
+ve hakları 640 olarak belirtilmiş)
+
+pw groupmod operator -m USER
+
+/etc/devfs.conf
+=BEGIN
+own     uscanner0 root:operator
+perm    uscanner0 0660
+=END
+
+değişikliklerin etkin olması için
+
+/etc/rc.d/devfs restart
+
+diğer cihazlardada uygulanabilir
+
+------8<--------------------------------------------
+
+.cshrc               
+.login_conf          
+.mailrc              
+.rhosts
+.login               
+.mail_aliases        
+.profile             
+.shrc
+
+
+dosyalarında sistem genelinde bir değişiklik yapmak istediğimizde
+(yeni oluşturulacak kullanıcılar için)
+
+
+/usr/share/skel
+dizinindeki
+
+dot.cshrc               
+dot.login_conf          
+dot.mailrc              
+dot.rhosts
+dot.login               
+dot.mail_aliases        
+dot.profile             
+dot.shrc
+
+dosyalarında değişiklik yaparız
+
+------8<--------------------------------------------
+
+locate filename
+
+eğer database too small gibi bir hata alırsak
+
+$ /usr/libexec/locate.updatedb
+
+komutu ile locate veritabanını güncelleriz
+işlem biraz uzun sürebilir
+
+root olarak çalıştırmak riskli
+
+------8<--------------------------------------------
+
+bir kelimeyi dosya yada dosyalar içinde aramak için
+
+grep "kelime" dosyaadi1 [dosyaadi2 dosyaadi3 ...]
+
+birden fazla kriter için
+; , [ ile başlayan yada boş olan satırları getirme
+$ grep -v -e '^;' -e '^\[' -e '^$' /usr/local/etc/php.ini
+
+------8<--------------------------------------------
+
+$ du -s * | sort -nr 
+
+komutu ile dizinleri boyutlarına göre listeleyebiliriz
+
+------8<--------------------------------------------
+$ man hier
+komutu ile FreeBSD dosya sistemi hiyerarşisini görebiliriz
+
+------8<--------------------------------------------
+script komutu ile bir oturumu kaydedebiliriz,
+
+script /tmp/oturum.txt
+
+CTRL + D ile script'i durdurabilirsiniz
+
+eğer dosya adı verilmezse varsayılan dosya adı typescript olarak veriliyor
+
+------8<--------------------------------------------
+$ cal -y 
+komutu ile senelik takvimi görüntüleyebiliriz
+
+$ cal
+aylık takvimi görüntüler
+------8<--------------------------------------------
+$ lastlogin 
+komutu ile en son ne zaman giriş yaptığımızı
+$ last 
+komutu ile ayrıntılı bir dökümü görebiliriz
+
+------8<--------------------------------------------
+iftop
+
+anlık trafiği gösteren bir uygulama
+curses ile yazılmış
+
+# whereis iftop
+# cd /usr/ports/net-mgmt/iftop
+# make install clean
+
+yada
+
+# pkg install iftop
+
+
+# iftop -n -P -i IF_ADI
+# iftop -n -i re0
+# iftop -n -i wlan0
+
+q ile çıkılır
+
+------8<--------------------------------------------
+# vncpasswd 
+# x0vncserver -PasswordFile=/home/sternix/.vnc/passwd
+
+# pkg install tightvnc
+# vncserver 
+# vncserver -kill :1
+
+------8<--------------------------------------------
+X11'de klavyeyi tr'ye çevirmek için
+$ setxkbmap tr
+------8<--------------------------------------------
+
+işlemci modelini görüntülemek için
+sysctl hw.model
+
+fiziksel ram miktarını görüntülemek için
+sysctl hw.realmem
+
+usb aygıtlarını listelemek için
+usbconfig
+
+ata aygıtlarını listelemel için
+camcontrol devlist -v
+
+------8<--------------------------------------------
+
+FreeBSD USB Mouse
+
+vim /etc/rc.conf
+
+=BEGIN
+moused_enable="YES"
+moused_type="auto"
+moused_port="/dev/ums0"
+=END
+
+
+komut satırından
+moused -p /dev/ums0 -t auto
+
+NOT : X11 kendisi sysmouse'u kullanıyor,
+------8<--------------------------------------------
+eğer bir arayüz DHCP olarak ayarlanmış ise
+
+# /etc/rc.d/dhclient restart re0
+
+ile re0 arayüzü yeniden başlatılır
+
+------8<--------------------------------------------
+Console font editörü
+
+# whereis fonteditfs
+# cd /usr/ports/sysutils/fonteditfs
+# make install clean
+
+# pkg install fonteditfs
+
+$ fnteditfs
+
+------8<--------------------------------------------
+
+eğer core dosyalarının diske yazılmamasını istiyorsak
+(bazı dosyalar fazla yer tutabiliyor)
+home dizinimizdeki .cshrc dosyasında
+limit coredumpsize 0
+satırını ekleriz
+
+$ man csh
+
+------8<--------------------------------------------
+
+0 ile 100 arasında rastgele bir sayı üretmek için
+
+$ jot -r 1 0 100
+
+------8<--------------------------------------------
+
+birden çok klasörü aynı anda oluşturmak için
+
+mkdir -p /home/sternix/deneme/{aaa,bbb}
+
+/home/
+/home/sternix/
+/home/sternix/deneme
+/home/sternix/deneme/aaa
+/home/sternix/deneme/bbb
+
+klasörleri yoksa oluşturur,
+
+------8<--------------------------------------------
+
+nullfs 
+bir dizininin mirror'u gibi hareket ederler
+
+# mkdir /home/sternix/testports
+# mount -t nullfs /usr/ports /home/sternix/testports
+
+/usr/ports'taki bir değişikliği /home/sternix/testports dizinde yada tam tersi şeklinde görülebilir,
+
+# mount -t nullfs -o ro /usr/ports /home/sternix/testports
+şeklinde mount edilirse /usr/ports dizininde yetkisi olan kullanıcı değişiklik yapabilir,
+fakat /home/sternix/testports dizinde read only olduğundan bir değişiklik yapılamaz,
+
+vim /etc/fstab
+=BEGIN
+/usr/ports	/home/sternix/testports	nullfs	rw	1	1
+/usr/src	/home/sternix/testsrc	nullfs	ro	1	1 
+=END
+
+
+read write opsiyonu ile mount etmek (varsayılan olarak rw)
+mount -t nullfs -o rw /usr/ports /home/sternix/testports
+
+unionfs mount edilmiş dizinin tabiri caiz ise diff'ini tutuyor
+
+
+unionfs'de benzer işlevi görüyor
+mount -t unionfs /usr/ports /home/sternix/testports
+
+
+vfs.usermount=1
+'de 
+
+mount edilecek dizin'nin
+sahibi user olmalı
+
+
+ör:
+
+
+mkdir ro-ports
+mkdir my-ports
+
+mount -t nullfs -o ro /usr/ports ro-ports
+mount -t unionfs -o rw,below,noatime ro-ports my-ports
+
+şimdi my-ports dizininde /usr/ports'u etkilemeden istediğimiz değişikliği yapabiliriz
+
+örneğin bir dosya yada dizini sildik
+/usr/ports'da duruyor
+tekrar getirmek için
+rm -W XXX
+komutunu kullanıyoruz
+
+ör:
+# cd my-ports
+# rm -rf databases
+# ls -al databases
+ls: databases: No such file or directory
+# rm -W databases
+# ls -al databases
+....
+
+bu özellik UFS'de var
+ve whiteout deniliyor
+
+------8<--------------------------------------------
+
+bir kullanıcının limitlerini görüntülemek için,
+
+
+$ limits 
+$ limits -e
+$ limits -e -U USER
+
+------8<--------------------------------------------
+
+ağdaki hata ve çakışmaları listelemek
+$ netstat -ni
+// Ierrs, Oerrs, Coll değerlerine bakılır
+$ netstat -w 1 -I re0 
+// saniyede bir 
+
+
+$ netstat -n -p tcp
+
+$ netstat -s
+$ netstat -s -p PROTO
+$ netstat -s -p tcp
+
+kern.ipc.nmbclusters değeri kernel'e network için ne kadar ram ayırmak istediğimizi belirtiyor
+
+$ netstat -m
+
+/boot/loader.conf'ta
+kern.maxusers
+değeri kernelin kullanacağı kaynaklar için belirleyici kriterlerden bir tanesi
+
+ör:
+$ netstat -m
+0/2796/2796/501486 mbuf clusters in use (current/cache/total/max)
+
+bir mbuf ortalama 2KB civarında 
+501486 
+1 GB civarında network buffer kullanabiliyor
+max'a yaklaşmadıktan sonra sorun yok
+cache olanlar'da sorun olmuyor
+current olanlar aktif olarak kullanılanlar
+
+şu andaki tcp socketleri
+$ netstat -AanW -p tcp
+
+$ netstat -I em0 -b
+
+netstat -an -f inet
+
+states => 
+ESTABLISHED = a connection exists and data is probably flowing
+LAST_ACK , FIN_WAIT_1 , FIN_WAIT_2 = bağlantı sonlandırılıyor
+SYN_RCVD , ACK , SYN_ACK = bağlantı başlatılıyor (ESTABLISHED'den önce)
+LISTEN = port bağlanılmaya hazır
+
+UDP is stateless does not have this state information
+
+Recv-Q : eğer 0'dan farklı ise gelen paketleri işlemede zorlanıyor kuyrukta bekliyor
+Send-Q : eğer 0'dan frklı ise karşı taraf gidecek paketleri alamamış kuyrukta bekliyor
+
+netstat -bn -f inet
+başka cihazlarla olan bağlantıları listeler
+------8<--------------------------------------------
+
+# tcpdump -i em0 'proto \icmp'
+# tcpdump -i em0 'proto \tcp'
+# tcpdump -i em0 'proto \udp'
+
+# bzcat pflog.0.bz2 | tcpdump -nn -tttt -r - host 192.168.100.68 | less
+
+------8<--------------------------------------------
+
+ikinci bir harddisk eklemek için
+
+önce sistemdeki diskleri listeliyoruz,
+$ camcontrol devlist
+<TSSTcorp CDW/DVD TS-H492C IB02>   at scbus0 target 0 lun 0 (cd0,pass0)
+<FB160C4081 HPF0>                  at scbus2 target 0 lun 0 (ada0,pass1)
+<WDC WD1600JS-70SGB1 20.06C06>     at scbus4 target 0 lun 0 (ada1,pass2)
+
+$ mount 
+/dev/ada0p2 on / (ufs, local, journaled soft-updates)
+devfs on /dev (devfs, local, multilabel)
+/dev/ada0p4 on /tmp (ufs, local, journaled soft-updates)
+/dev/ada0p5 on /var (ufs, local, journaled soft-updates)
+/dev/ada0p6 on /home (ufs, local, journaled soft-updates)
+/dev/ada0p7 on /usr (ufs, local, journaled soft-updates)
+
+
+bizim sisteme ekleyeceğimiz harddisk
+ada1 -> <WDC WD1600JS-70SGB1 20.06C06> 
+
+# gpart create -s GPT ada1
+ada1 created
+
+# gpart add -t freebsd-ufs ada1
+ada1p1 added
+
+# newfs -U /dev/ada1p1
+
+# mkdir /opt
+
+# vim /etc/fstab
+=BEGIN
+/dev/ada1p1	/opt	ufs	rw	2	2
+=END
+
+# mount /opt
+
+------8<--------------------------------------------
+
+gpart show -l
+gpart show ada1
+
+#gpart delete -i 1 ada1s1
+ada1s1a deleted
+# gpart show -l
+=>        0  134217728  ada0  BSD  (64G)
+          0    8388608     1  (null)  (4.0G)
+    8388608    8388608     2  (null)  (4.0G)
+   16777216    8388608     4  (null)  (4.0G)
+   25165824    8388608     5  (null)  (4.0G)
+   33554432   33554432     6  (null)  (16G)
+   67108864    8388608     7  (null)  (4.0G)
+   75497472   58720255     8  (null)  (28G)
+  134217727          1        - free -  (512B)
+
+=>      63  12582849  ada1  MBR  (6.0G)
+        63  12582801     1  (null)  [active]  (6G)
+  12582864        48        - free -  (24k)
+
+=>       0  12582801  ada1s1  BSD  (6G)
+         0  12582801          - free -  (6G)
+
+# gpart delete -i 1 ada1
+ada1s1 deleted
+# gpart show -l
+=>        0  134217728  ada0  BSD  (64G)
+          0    8388608     1  (null)  (4.0G)
+    8388608    8388608     2  (null)  (4.0G)
+   16777216    8388608     4  (null)  (4.0G)
+   25165824    8388608     5  (null)  (4.0G)
+   33554432   33554432     6  (null)  (16G)
+   67108864    8388608     7  (null)  (4.0G)
+   75497472   58720255     8  (null)  (28G)
+  134217727          1        - free -  (512B)
+
+=>      63  12582849  ada1  MBR  (6.0G)
+        63  12582849        - free -  (6G)
+
+
+
+
+# gpart destroy ada1
+
+# dd if=/dev/zero of=/dev/ada1 count=1024
+
+# gpart create -s bsd ada1
+-s gpt 
+
+
+# gpart show -l
+
+=>        0  134217728  ada0  BSD  (64G)
+          0    8388608     1  (null)  (4.0G)
+    8388608    8388608     2  (null)  (4.0G)
+   16777216    8388608     4  (null)  (4.0G)
+   25165824    8388608     5  (null)  (4.0G)
+   33554432   33554432     6  (null)  (16G)
+   67108864    8388608     7  (null)  (4.0G)
+   75497472   58720255     8  (null)  (28G)
+  134217727          1        - free -  (512B)
+
+=>       0  12582912  ada1  BSD  (6.0G)
+         0  12582912        - free -  (6.0G)
+
+
+gpart add -s 6G -t freebsd-ufs ada1
+
+
+# gpart show ada1
+=>       0  12582912  ada1  BSD  (6.0G)
+         0  12582912     1  freebsd-ufs  (6.0G)
+
+------8<--------------------------------------------
+notebook'un pili ne kadar var?
+
+$ sysctl -n hw.acpi.battery.life
+$ acpiconf -i 0 
+
+------8<--------------------------------------------
+
+makinanın üzerindeki usb'leri ethernet kartı olarak görmemesi için
+
+vim /etc/sysctl.conf
+=BEGIN
+hw.usb.no_pf=1
+=END
+
+# sysctl hw.usb.no_pf=1
+
+------8<--------------------------------------------
+
+pkg update => local veritabanını günceller, sqlite veritabanı /var/db/pkg dizini
+pkg upgrade => paketleri günceller, paketleri /var/cache/pkg dizinine
+indiriyor
+
+pkg -o DEBUG_LEVEL=4 upgrade => şekinde debug seviyesi  bildirebiliyoruz (sql
+ifadeleri , dosyalar bağımlılıkları gösteriyor)
+pkg info => kurulu olan paketleri listeler
+pkg info PAKET_ADI => paket hakkında bilgi verir
+pkg info -d PAKET_ADI => bağımlı (depend) paketleri listeler
+ör : pkg info -d vim
+
+pkg info -s PAKET_ADI => paketin ne kadar alan kullandığı
+pkg info -sa => tüm paketlerin ne kadar alan kullandığı
+
+kurulan pakete ait tüm dosyaları listelemek(list) için
+pkg info -l PAKET_ADI
+ör : pkg info -l vim
+
+sistemdeki dublicate paketleri listelemek için
+pkg info | sort | sed -e 's/-[0-9].*$//' | uniq -c | grep -v '^[[:space:]]*1'
+
+
+pkg install PAKET_ADI => paketi uzaktan kurar
+pkg add paket_adi => local yada uzaktaki paketi kurar (yol verilmesi gerekli)
+(farklı freebsd versiyonunda kuruluan paketi kurmuyor , aynı versiyon ve
+mimari gerekiyor)
+pkg search kriter => paketi_arar
+pkg search -D pattern => açıklaması ile arar
+pkg search -f paket_adı => detaylı açıklamalarıda gösterir
+pkg search '^gcc' => gcc ile başlayan paketleri listeler
+
+
+pkg which dosya_adi => dosyanın hangi paket ile kurulduğunu gösterir
+ör: pkg which /usr/local/etc/pkg.conf.sample
+/usr/local/etc/pkg.conf.sample was installed by package pkg-1.2.5
+
+pkg create paket_adi => sistemde kurulu olan (ports yada pkg ile) programı
+paket haline getirir
+ör : pkg create vim
+ls
+vim-7.4.110_3.txz
+
+------8<--------------------------------------------
+#!/bin/sh
+# bir portu bağımlı portları ile paket haline getirmek için
+# kullanimi : script_adi vim
+
+for pkg in `pkg info -qd $1`
+do
+        pkg create -n $pkg
+        for d_pkg in `pkg info -qd $pkg`
+        do
+                pkg create -n $d_pkg
+        done
+done
+
+pkg create -n  $1
+
+------8<--------------------------------------------
+
+sh'de fonksiyon parameteresi örneği
+
+pkg_create () {
+        if [ ! -f $1.txz ]; then
+                pkg create $1
+        fi
+}
+
+for pkg in `pkg info -qd $1`
+do
+        pkg_create $pkg
+        for d_pkg in `pkg info -qd $pkg`
+        do
+                pkg_create $d_pkg
+        done
+done
+
+pkg_create $1
+
+
+------8<--------------------------------------------
+
+
+pkg audit => ilk önce 
+pkg audit -F 
+çalıştırılır sonrada sistemde kurulu olan
+paketlerdeki inceler ve problem yada güvenlik açığı olanları listeler
+
+pkg delete PAKET_ADI => paketi sistemden siler (kaldırır)
+pkg delete -f PAKET ile sadece belirtilen PAKET sistemden silinir,
+bağımlı olduğu paketler sistemden kalır
+
+pkg autoremove => bazı paketler kaldırıldıktan sonra bağımlı oldukları
+paketler sistemde kalabilir yada ports ile bir paket kurulurken derleme
+zamanında bazı paketlere ihtiyaç duyabilir (örneğin gmake) bu paketleri
+sistemden kaldırmak için kullanılır, (orphan paketleri temizler), eskiden
+pkg-orphan , pkg_cutleaves gibi programların yaptıkları yapar
+
+pkg check 
+-B => bağımlı olduğu dosyaları
+-d => bağımlı paketleri
+-s => checksum
+-r => paketlerin kullandığı boyutları yeniler
+
+kontrol eder
+
+
+pkg backup pkg_05_11_2013.db => pkg veritabanının yedeğini alır (mevcut dizin
+yada verilen yola)
+
+pkg backup -r yedek_alınan_dosya => alınan yedeği restore eder
+
+pkg clean => sistemden kaldırılmış paketleri yada gereksiz dosyaları siler
+
+
+pkg install -Rf graphics/freeglut
+reinstall and force
+
+
+pkg lock
+used to lock packages against reinstallation, modification or deletion. 
+
+eğer pkg upgrade ile bazı paketlerin güncellenmesini istemiyor isek
+pkg lock PAKET_ADI
+ile o paketi kilitleriz,
+o hariç diğerleri güncellenir
+
+eğer tekrar pkg upgrade ile güncellemek ister isek
+pkg unlock PAKET_ADI
+ile eski haline çevirebiliriz
+
+eğer ports'tan (source) güncelleme yapılacak ise
+paketi ilk önce 
+pkg unlock PAKET_ADI
+portupgrade PAKET_ADI
+pkg lock PAKET_ADI
+şeklinde güncelleyebiliriz
+
+
+kilitli paketleri 
+pkg lock -l 
+ile listeleyebiliriz
+
+pkg set -o lang/php5:lang/php53
+pkg set -o lang/ruby18:lang/ruby19
+pkg set -o graphics/libglut:graphics/freeglut
+pkg set -o lang/perl5.12:lang/perl5.16
+
+
+
+pkg -vv => detaylı bilgileri gösterir (ör:hangi repositoryleri kullandığı)
+
+
+pkg query -e '%q=freebsd:9:x86:64' %n
+
+
+düzenli olarak portları güncellemek için crontab dosyasına 
+=BEGIN
+0       4       *       *       *       root    portsnap cron update && pkg version -vIL=
+=END
+
+satırları eklenir
+
+
+pkg updating
+ile son değişiklikleri görebiliriz
+
+
+pkg veritabanı olarak sqlite kullanıyor,
+veritabanı dosyasını
+/var/db/pkg/
+dizininde 
+local.sqlite 
+adıyla saklıyor
+
+
+pkg stat => paket istatistiklerini verir
+
+=BEGIN
+Local package database:
+        Installed packages: 903
+        Disk space occupied: 5 GiB
+
+Remote package database(s):
+        Number of repositories: 1
+        Packages available: 23917
+        Unique packages: 23917
+        Total size of packages: 42 GiB
+=END
+
+
+
+/etc/default/periodic.conf
+dosyasında görüldüğü gibi günlük olarak pkg'nin veritabanının yedeğini 
+/var/backups dizinine alıyor
+
+daily_backup_pkgdb_enable="YES"
+daily_backup_pkgdb_dir="/var/backups"
+
+
+pkg clean => /var/cache/pkg dizinindeki kullanılmayan dosyaları siler
+
+------8<--------------------------------------------
+
+tunefs 
+$ tunefs -p /mount_point ile hangi opsiyonların disable - enable olduğuna
+bakılabilir - root hakkı istiyor
+
+
+# tunefs -j enable /mount_point
+ile journaled soft updates etkinleştirilir
+
+diskin mount edilmemiş olması lazım
+------8<--------------------------------------------
+
+# chflags nodump /dump_ta_exclude_edilecek_dosya_yada_dizin
+
+# dump -C32 -b64 -0uanL -h0 -f /opt/var.dump /var
+
+# dump -0uLa -h 0 -f /dosya_adi /mount_point
+
+0 -> full backup 
+L -> live system olduğu (snapshot) 
+u -> /etc/dumpdates dosyasını güncelle
+a -> auto-size bir çok sorudan kurtarıyor 
+h -> chflags nodump ile flag'i set edilen dosya yada klasörleri exclude eder
+C -> cache size, 32 megabyte uygun 
+b -> block size varsayılan 10 , 64 benim testlerimde uygun
+f -> yedeğin yazılacağı dosya
+n -> wall komutu gibi console bağlı olan kullanıcılara backup alınıyor diye
+bilgi veriliyor
+
+[0-9] backup levels 0 full 1..9 incremental
+
+ssh üzerinden backup alma
+
+dump -0uLa -C32 -b64 -f - /usr | ssh sternix@192.168.100.161 dd of=/home/sternix/klms.dump
+
+#dump almak için
+dump -0uan -f /home/sternix/opt.dump /opt
+
+alınan dump dosyasının içeriğini listelemek için
+restore -t -f opt.dump 
+
+# interaktif restore işlemi
+restore -i -f opt.dump
+# restorenin komut satırına düşüyor
+burada ls cd vs komutlarını kullanabiliriz
+almak istediğimiz dosyaları
+add ile (wildcard karakterde kullanılabilir) belirtip
+extract ile mevcut bulunduğumuz dizine açar
+restore > add pgsql
+restore > add ruby
+restore > extract
+You have not read any tapes yet.
+If you are extracting just a few files, start with the last volume
+and work towards the first; restore can quickly skip tapes that
+have no further files to extract. Otherwise, begin with volume 1.
+Specify next volume #: 1
+set owner/mode for '.'? [yn] y
+restore > quit
+
+
+yada komple bir partition'u restore etmek için
+cd /opt
+restore -r -f /home/sternix/opt.dump
+
+restore -t
+ile 
+
+dump komutu
+
+mkdir /backup
+cd /backup
+dump 0af - /var | restore -rf -
+
+
+dump -0 -a -L -f /dump_dosyasi.dump /yedek_alinacak_partition
+
+-0 - means to backup entire filesystem
+-f name - output to file/device, or to stdout if you use -
+-a - you need this if you output to file. (tells dump not to worry about the backup media volume)
+-u - Means to update dumpdates file
+-L - needed if you backup mounted filesystem
+
+
+
+restore komutu mevcut dizine dump dosyasını açar
+
+restore -r -f dump.dosyasi
+
+
+bir dosya sisteminde bir dosya yada klasörü dump'tan hariç tutmak (exclude)
+istersek
+
+chflags nodump dosya_yada_dizin_adi
+
+komutu ile o dosyanın flag'ini değiştiririz
+
+
+------8<--------------------------------------------
+
+dig , nslookup gibi komutlar bind paketinin içinde bulunuyordu,
+freebsd 10 ile bind temel kurulumdan kaldırıldı,
+eğer bu programlara ihtiyaç duyuluyorsa
+
+# cd /usr/ports/dns/bind-tools/
+# make install clean
+
+yada
+
+# pkg install bind-tools
+
+dig yerine  drill komutunu kullanabiliriz
+
+------8<--------------------------------------------
+FreeBSD versiyonunu öğrenmek için
+
+$ freebsd-version
+
+------8<--------------------------------------------
+
+kırık sembolik linkler
+
+Bir symbolik linkin hedefinin olup olmadığını test etmek için
+find -L / -type l
+
+hedefi olmayan bir sembolik linki silmek için
+find -L / -type l -print0 | xargs -o rm
+
+------8<--------------------------------------------
+port derlemelerini hızlandırmak için
+hem ccache kullanılıyor hemde ports'un work dizinini tmpfs ile ram'de oluşturuyor
+
+# cd /usr/ports/devel/ccache
+# make install clean
+
+vim /etc/make.conf
+WRKDIRPREFIX=/ram
+WITH_CCACHE_BUILD=yes
+
+
+# mkdir /ram
+# echo 'none /ram tmpfs rw,size=2G 0 0' >> /etc/fstab
+# mount /ram
+
+$ ccache -s
+komutu ile istatistiklerini inceleyebiliriz
+
+------8<--------------------------------------------
+
+sistemdeki diskleri listelemek için
+$ sysctl kern.disks
+$ camcontrol devlist
+
+------8<--------------------------------------------
+
+echo "Test" | mail -v info@example.com
+
+------8<--------------------------------------------
+
+openssl sertifika bilgileri görüntüleme
+
+openssl x509 -in CERT.pem  -noout -text
+
+------8<--------------------------------------------
+
+bir interfacedeki ipleri arp ile listelemek
+arp -an -i re0 | awk '{print $2}' | tr -d '(' | tr -d ')'
+
+------8<--------------------------------------------
+SSH Port Forwarding
+
+ssh -L5900:127.0.0.1:myxenhost.example.com
+
+------8<--------------------------------------------
+portları gündelik güncellemek ve mail olarak bildirilmesi için
+
+vim /etc/crontab
+=BEGIN
+0       4       *       *       *       root    portsnap cron update && pkg version -vIL=
+=END
+------8<--------------------------------------------
+# pkg install rar unrar
+
+$ rar extract
+$ rar x -av dosya.rar
+$ unrar e ARCHIVE.rar
+------8<--------------------------------------------
+
+bunzip2,xz ve gzip'te dosya açılırken orijinal dosya silinir,
+eğer orijinal dosyayı saklamak istersek
+
+$ bunzip2 -k abc.bz2
+şeklinde -k yada --keep kullanırız
+
+$ xz -k abc.xz
+------8<--------------------------------------------
+
+$ ab -kc 500 -n 10000 http://10.1.1.1/
+-k = keep alive
+
+$ httperf --hog --server=10.1.1.1 --wsess=2000,10,2 --rate 300 --timeout 5
+
+------8<--------------------------------------------
+
+Brace Expansion
+
+mv abc.conf{,.orj}
+
+mevcut dizindeki abc.conf dosyasını abc.conf.orj olarak değiştiriyor
+
+ör:
+
+# pwd
+# /root
+# cp /etc/rc.conf{,.bak}
+# ls -al /etc/rc.conf*
+
+yani 
+# cp /etc/rc.conf /etc/rc.conf.bak
+yerine 
+# cp /etc/rc.conf{,.bak} 
+aynı işi görüyor
+
+ör:
+mkdir xyz
+mkdir xyz/a
+mkdir xyz/b
+mkdir xyz/c
+mkdir xyz/d
+
+yerine
+
+mkdir -p xyz/{a,b,c,d}
+
+ör:
+mv abc.xyz abc.klm
+yerine
+mv abc.{xyz,klm}
+
+
+ör:
+
+touch aaa{1,2,3}.log
+aaa1.log
+aaa2.log
+aaa3.log
+
+
+düzeltmek için
+mv dosya.tar.gc dosya.tar.gz
+mv dosya.tar.{gc,gz}
+
+
+fazladan yazılmış l'yi kaldırmak için
+mv dosyal.log dosya.log
+mv dosya{l,}.log
+
+
+$ mv recovery.{done,conf}
+komutu ile recovery.done recovery.conf olarak yeninden adlandırıyor
+
+------8<--------------------------------------------
+
+firefox'un registy'si
+
+url satırına
+about:config
+
+
+------8<--------------------------------------------
+
+bir siteyi komple indirmek yada aynalamak (mirror)
+
+wget -m http://SITE
+
+------8<--------------------------------------------
+
+# at 15:45
+echo "Test" >> /dev/console
+^D
+#
+
+atq ile at kuyruğu görülebilir
+# atq
+
+at -r JOBID
+
+------8<--------------------------------------------
+
+ktrace program_adi
+sonuç olarak ktrace.out adında bir dosya oluşuyor
+bu dosyayı görüntülem için 
+kdump programı kullanılıyor
+örnek bir oturum
+
+$ ktrace ls
+$ kdump -f ktrace.out
+
+------8<--------------------------------------------
+
+software raid için
+ör nvidia raid 
+
+$ graid list
+
+------8<--------------------------------------------
+işletim sistemi ile gelen ssl'i güncellerken
+bazen sistemi restart etmek gerekebiliyor
+haproxy gibi programları sistem'in ssl'i ile değil
+kendi derlediğimiz güncel ssl ile kurabiliriz
+
+openssl statik derleme
+
+mkdir /home/sternix/staticlibssl
+setenv STATICLIBSSL /home/sternix/staticlibssl
+
+cd openssl-src-dir
+./config --prefix=$STATICLIBSSL no-shared
+make 
+make install_sw
+
+haproxy kaynak koddan ve ve kendi openssl'imiz ile derleme 
+
+# gmake TARGET=freebsd USE_PCRE=1 USE_ZLIB=1 USE_OPENSSL=1 SSL_INC=$STATICLIBSSL/include SSL_LIB=$STATICLIBSSL/lib
+
+------8<--------------------------------------------
+memory disk 
+/usr/obj 2000m'lık bir hafızada
+
+# mdmfs -M -s 2g md /usr/obj
+
+# umount /usr/obj
+# mdconfig -l
+# mdconfig -d -u ID 
+------8<--------------------------------------------
+X11 forwarding
+
+#öncelikle windows makinasına xming kurulur
+#http://sourceforge.net/projects/xming/
+
+klavyede sorun yaşamaması, visual studio ile derlenmesi ve 64 bit olması
+dolayısı ile vcxsrv daha kullanışlı
+http://sourceforge.net/projects/vcxsrv/
+
+sonra putty açılır
+sol taraftaki ağaç menüsünden
+Connection -> SSH -> X11 seçilir
+sağ tarafta Enable X11 forwarding checklenir
+sonra bağlanılacak olan X11 yüklü UNIX makinasının ip adresi Session menüsündeki
+Host Name (or IP address) alanına girilir,
+sonra bağlanılır
+
+çalıştırmak istediğimiz programı putty ile çalıştırıyoruz,
+program karşıda çalışıyor fakat ekran olarak windows makinasını kullanıyoruz,
+
+------8<--------------------------------------------
+FreeBSD src patchleme
+
+# fetch http://security.FreeBSD.org/patches/SA-14:02/ntpd.patch
+# fetch http://security.FreeBSD.org/patches/SA-14:02/ntpd.patch.asc
+# gpg --verify ntpd.patch.asc
+
+
+# cd /usr/src
+# patch < /path/to/patch
+
+------8<--------------------------------------------
+
+disk bilgileri için
+
+$ gstat
+
+# hangi programların diski kullandıkları
+$ top -m io
+
+# partition'nun aktif / pasif özellikleri
+$ tunefs -p /dev/ada0p5
+
+smart özellikleri
+$ smartctl -a /dev/ada0
+
+------8<--------------------------------------------
+ağ trafiğini aylık haftalık gösteren bir program
+
+# cd /usr/ports/net/vnstat
+# make install clean
+
+yada 
+# pkg install vnstat
+
+
+vim /usr/local/etc/vnstat.conf
+=BEGIN
+Interface "INTERFACE"
+=END
+
+# sysrc vnstat_enable=YES
+# service vnstat start 
+
+vnstat istatistikleri gösterebilmesi için biraz veri toplaması gerekiyor
+
+
+
+vnstat -u -i em0
+
+	 -q,  --query          query database
+         -h,  --hours          show hours
+         -d,  --days           show days
+         -m,  --months         show months
+         -w,  --weeks          show weeks
+         -t,  --top10          show top10 , en yüksek transfer yapılan 10 günü
+listeler
+         -s,  --short          use short output
+         -u,  --update         update database
+         -i,  --iface          select interface (default: em0)
+         -?,  --help           short help
+         -v,  --version        show version
+         -tr, --traffic        calculate traffic
+         -ru, --rateunit       swap configured rate unit
+         -l,  --live           show transfer rate in real time
+
+
+# vnstat
+
+Database updated: Fri Apr 10 09:31:43 2015
+
+   re0 since 09/09/14
+
+          rx:  2.71 TiB      tx:  5.19 TiB      total:  7.89 TiB
+
+   monthly
+                     rx      |     tx      |    total    |   avg. rate
+     ------------------------+-------------+-------------+---------------
+       Mar '15    280.20 GiB |  836.44 GiB |    1.09 TiB |    3.50 Mbit/s
+       Apr '15    119.02 GiB |  255.71 GiB |  374.73 GiB |    3.87 Mbit/s
+     ------------------------+-------------+-------------+---------------
+     estimated    379.97 GiB |  816.36 GiB |    1.17 TiB |
+
+   daily
+                     rx      |     tx      |    total    |   avg. rate
+     ------------------------+-------------+-------------+---------------
+     yesterday     17.69 GiB |   26.77 GiB |   44.46 GiB |    4.32 Mbit/s
+         today      4.15 GiB |    5.47 GiB |    9.62 GiB |    2.35 Mbit/s
+     ------------------------+-------------+-------------+---------------
+     estimated     10.47 GiB |   13.79 GiB |   24.26 GiB |
+
+hata:
+
+Error: Unable to create database backup "/var/lib/vnstat/.wlan0".
+# chown vnstat /var/lib/vnstat/*
+
+------8<--------------------------------------------
+ssl sertifika test için
+
+ssllabs.com
+
+------8<--------------------------------------------
+postfix'te hata alan mailleri tekrar kuyruğa sokmak için
+
+# postsuper -r ALL
+
+kuyruktaki tüm mailleri silmek için
+
+# postsuper -d ALL
+------8<--------------------------------------------
+
+firefox'ta bir sayfayı print dialog gelmeden yazdırmak için
+
+about:config
+sayfasına gelinir
+
+new -> boolean bir key girilir
+
+print.always_print_silent
+
+ve true olarak ayarlanır
+
+------8<--------------------------------------------
+
+man dosyası hazırlamak için
+man mdoc sayfasına bakılabilir
+
+------8<--------------------------------------------
+syslog'da tüm logları başka bir makinaya yollamak için
+
+*.*     @IP
+*.*     @192.168.2.200
+
+------8<--------------------------------------------
+
+nfs'de root partition'ı nfs'den mount etmek için
+
+192.168.2.200 /     nfs     ro       0       0
+/proc               procfs  rw       0       0
+
+------8<--------------------------------------------
+/etc/rc.initdiskless
+
+disksiz bir kurulum'da işimize yarayacak bir script
+
+------8<--------------------------------------------
+
+ftp sunucusu kurulumu
+freebsd'de yüklü gelen ftp sunucusu sistem kullanıcı hesapları ile 
+işlem yapar ve kullanıcının home dizini ftp'nin home dizini oluyor.
+
+örnek bir kullanıcı oluşturalım
+
+adı myftpuser
+home dizini /opt/ftpuser
+ve shell olarak ta /bin/csh
+
+pw useradd myftpuser -d /opt/ftproot -s /bin/csh
+passwd myftpuser 
+
+mkdir /opt/ftproot
+chown myftpuser /opt/ftproot
+chgrp myftpuser /opt/ftproot
+
+
+kendi home dizininin dışına çıkılmaması için 
+(kendi home dizinine hapsediyoruz - chroot)
+
+vim /etc/ftpchroot
+=BEGIN
+myftpuser
+@GROUP
+=END
+
+/etc/ftpusers dosyasına eklenen kullanıcı ve gruplara ftp ile erişim izini
+VERİLMEZ yani ftp kullanıcısı dışındaki tüm kullanıcıları bu dosyaya ekleriz,
+
+vim /etc/ftpusers
+=BEGIN
+@GRUP
+KULLANICI
+=END
+
+user ismi normal olarak yazılırken
+grup isimlerinin önüne @işareti konulur
+
+vim /etc/rc.conf
+=BEGIN
+ftpd_enable="YES"
+ftpproxy_enable="YES"
+=END
+
+ile ftp sunucusunu aktif ediyoruz,
+ftpproxy pf'de kullanırken gerekiyor
+
+/etc/rc.d/ftpd start
+ile ftp sunucusunu başlatıyoruz
+
+------8<--------------------------------------------
+# cd /usr/ports/sysutils/no-login
+# make install clean
+
+/usr/sbin/nologin'den farkı login olmaması gereken bir kullanıcı hesabı ile
+giriş yapılmak istenildiğinde syslog'a bunu yazması
+
+
+kullanıcının shell'ini
+/usr/local/sbin/nologin
+yapmamız gerekiyor
+
+
+nologin.c
+=BEGIN
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <syslog.h>
+
+int
+main(int argc, char *argv[])
+{
+    int ch;
+    char *user, *device;
+    extern char *optarg;
+
+    if ((user = getlogin()) == NULL)
+        user = "UNKNOWN";
+
+    if ((device = ttyname(0)) == NULL)
+        device = "UNKNOWN";
+
+    openlog("nologin", LOG_CONS, LOG_AUTH);
+    syslog(LOG_CRIT, "%s on %s", user, device);
+    closelog();
+
+    while ((ch = getopt(argc, argv, "m:")) != -1)
+    {
+	switch (ch)
+	{
+	case 'm':
+	    printf("%s: %s\n", user, optarg);
+	    break;
+	}
+    }
+
+    return 0;
+}
+=END
+
+
+Makefile
+=BEGIN
+PREFIX?=/usr/local
+
+all:		nologin
+
+nologin:	nologin.c
+
+install:
+		install -c -o root -g bin -m 755 nologin $(PREFIX)/bin
+		install -c -o root -g wheel -m 444 nologin.8 $(PREFIX)/man/man8
+clean:
+		-rm -f *.o *~ nologin
+=END
+
+------8<--------------------------------------------
+fstat açık dosya soket vs listeler
+
+$ fstat -f /cdrom
+
+$ fstat -u USER
+$ fstat -p PID
+
+USER     CMD          PID   FD MOUNT      INUM MODE         SZ|DV R/W
+şeklinde bir çıktı veriyor
+
+------8<--------------------------------------------
+eğer umount edilecek dizinde hiç bir açık dosya yok ise bağlantı kaldırılır 
+fakat açık bir dosya varsa failed: Device busy hatası verir
+
+hangi process yada user'ın eriştiğini bulmak için
+$ fstat -f /MNT_POINT
+
+$ fstat -f /opt
+
+eğer process'leri sonlandırmak istersek (tavsiye edilmiyor)
+/opt dizininde işlem yapan tüm process'lere SIGKILL yolluyor
+
+$ fuser -k /opt
+
+eğer bağlantı varsa'da zorla (force) bağlantıyı kaldırabiliriz
+$ umount -f MNT_POINT
+
+$ umount /f /opt
+------8<--------------------------------------------
+disk kullanımı görüntülemek için
+$ df 
+$ df -h => byte olarak değil mb ,gb olarak gösteriyor
+$ df -hi => inode kullanımınıda gösteriyor
+$ df -hc => en alt satıra total satırı ekliyor
+$ df -l => sadece local bağlantı noktalarını gösterir (nfs vs. dahil değil)
+$ df -T => dosya sistemi tipinide gösterir
+
+------8<--------------------------------------------
+bsdinfo
+
+# cd /usr/ports/sysutils/bsdinfo
+# make install clean
+
+yada
+
+# pkg install bsdinfo
+
+$ bsdinfo
+
+işletim sistemi vs bilgilerini gösteren küçük bir program
+
+------8<--------------------------------------------
+img dosyasını usb stick'e yazdırma
+
+# dd if=FreeBSD-11.0-RELEASE-amd64-memstick.img of=/dev/da0 bs=1m conv=sync
+
+------8<--------------------------------------------
+
+echo 'snd_hda_load="YES"' >> /boot/loader.conf
+echo 'snd_driver_load="YES"' >> /boot/loader.conf
+
+
+durumu öğrenmek için
+cat /dev/sndstat 
+
+ses için 
+/etc/sysctl.conf
+
+# S/PDIF out on my MSI board
+// varsayılan ses aygıtı
+hw.snd.default_unit=6
+#hw.snd.default_unit=8
+# Don't automatically use new sound devices
+hw.snd.default_auto=0 
+
+
+
+% cat /dev/sndstat 
+Installed devices:
+pcm0: <NVIDIA GT440 (HDMI/DP 8ch)> (play)
+pcm1: <NVIDIA GT440 (HDMI/DP 8ch)> (play)
+pcm2: <NVIDIA GT440 (HDMI/DP 8ch)> (play)
+pcm3: <NVIDIA GT440 (HDMI/DP 8ch)> (play)
+pcm4: <IDT 92HD87B1/3 (Analog 2.0+HP/2.0)> (play/rec) default
+pcm5: <IDT 92HD87B1/3 (Analog Mic)> (rec)
+No devices installed from userspace.
+
+$ mixer
+Mixer vol      is currently set to  90:90
+Mixer pcm      is currently set to 100:100
+Mixer speaker  is currently set to 100:100
+Mixer mic      is currently set to  67:67
+Mixer rec      is currently set to   1:1
+Mixer ogain    is currently set to 100:100
+Recording source: mic
+
+
+$ sysctl hw.snd
+$ sysctl dev.pcm
+
+$ mixer
+sesi arttırıp azaltmak
+0 düşük / 100 yüksek
+mixer -s pcm 100
+mixer -s vol 100
+mixer -s speaker 100
+mixer -s rec 100
+
+mixer -f /dev/mixer1 mic 50
+
+------8<--------------------------------------------
+root yada yetkili olmayan kullacıların,
+CD-ROM,floppy, USB disk gibi cihazları mount etmesine izin vermek için
+
+# vim /etc/sysctl.conf
+vfs.usermount=1
+
+kullanıcı sadece kendine ait olan dizine mount edebilir
+777 hakkı olsa bile başka kullanıcıya ait dizine mount edemez
+
+# sysctl vfs.usermount=1
+------8<--------------------------------------------
+
+man dosyalarında bir bölüme atlamak için
+$ man csh | less -p 'history \['
+$ man tcpdump | less -Ip examples
+
+------8<--------------------------------------------
+HPET - High Precision Event Timer 
+
+------8<--------------------------------------------
+
+kullanıcıyı locklamak 
+(rmuser ile kullanıcı silindiğinde home dizinide siliniyor lock ile sistemden
+silinmeden etkisiz hale geliyor)
+
+# pw lock USER
+# pw unlock USER
+
+bir kullanıcı kilitlendiğinde
+/etc/master.passwd dosyası o kullanıcı satırı için LOCKED olarak güncelleniyor
+xyz:*LOCKED**:1003:1003::0:0:User &:/home/xyz:/bin/sh
+
+------8<--------------------------------------------
+read-only bir dosya sistemini rw olarak tekrar mount etmek için
+
+mount -o rw /
+yada
+mount -o rw /dev/ada0s1 /
+
+tekrar readonly yapmak için
+mount -o ro /
+------8<--------------------------------------------
+
+Timezone'u değiştirmek
+# cp /usr/share/zoneinfo/Europe/Istanbul /etc/localtime
+yada
+# ln -s /usr/share/zoneinfo/Europe/Istanbul /etc/localtime
+
+tzsetup programı ile'de değiştirilebilir
+
+------8<--------------------------------------------
+
+# reboot => Sistemi yeniden başlat 
+# halt -n => diskleri senkronize etme
+# halt -p => sistem destekliyorsa power'ı kapat
+# shutdown +10 => Kullanıcıları uyr ve 10 dakika sonra sistemi kapat
+# shutdown -r 19:00 => saat 19:00'da sistemi restart et
+# shutdown +10 'Sistemi Kapatıyoruz!' => Kullanıcılara mesaj ver ve 10 dakika sonra sistemi kapat  
+
+------8<--------------------------------------------
+hata olabilecek değerler
+
+$ netstat -s | egrep 'retrans|drop|out-of-order|memory problems|overflow';
+$ netstat -s | egrep 'bad|checksum'
+
+------8<--------------------------------------------
+
+$ ps -a | wc -l  => toplam process
+$ sysctl kern.maxproc => max process
+
+$ fstat -p PID => PID'in kullandığı dosyalar
+$ pstat -T => kullanılan / max dosya sayısı
+$ sysctl kern.openfiles => kullanımdaki dosya tanımlayıcı sayısı
+$ sysctl kern.maxfiles => açılabilecek max dosya tanımlayıcı sayısı
+$ ulimit -n => bir kullanıcı için izin verilen dosya , soket tanımlayıcı sayısı
+
+------8<--------------------------------------------
+lockstat: can't load kernel symbols: No such file or directory
+hatası için
+
+# kldload ksyms
+
+kalıcı olması için
+# echo 'ksyms_load="YES"' >> /boot/loader.conf
+
+------8<--------------------------------------------
+
+FreeBSD'de https'li sitelerde fetch kullanırken sertifika doğrulamada hata alınır ise
+$ fetch --no-verify-peer URL
+
+ile sertifika doğrulama yapmadan işlemimizi yapabiliriz
+
+------8<--------------------------------------------
+
+$ cat abc.txt |grep "ARANAN" -A2 -B1
+
+grep ile A = after context
+B = before context
+
+------8<--------------------------------------------
+açılış ekranındaki logo'yu değiştirme
+
+# vim /boot/loader.conf
+loader_logo="fbsdbw"
+
+diğer değerler
+orbbw, orb, fbsdbw, beastiebw, beastie, none
+------8<--------------------------------------------
+bir cd yada dvd'nin iso olarak imajını almak için
+dd if=/dev/acd0 of=cdimage.iso bs=2048
+
+------8<--------------------------------------------
+sade komutu
+FreeBSD installer'de kullanılan partition editor
+
+------8<--------------------------------------------
+chm decompile 
+
+windows'ta 
+> hh.exe -decompile FILENAME
+
+yada 7z ile
+
+pkg instal archivers/p7zip
+$ 7z e FILE.CHM
+
+------8<--------------------------------------------
+eger bir host'un bilgileri degisirse
+known hosts dosyasindan silmek icin
+
+ssh-keygen -f "/home/sternix/.ssh/known_hosts" -R 192.168.1.3
+
+------8<--------------------------------------------
+scp'de home directory yerine
+
+scp FILE USER@HOST:~
+
+ile home directoy ifade ediliyor
+
+------8<--------------------------------------------
+dizini paylaşmak için basit bir http sunucu
+
+$ python -m SimpleHTTPServer 8000
+
+diğer makinadan 
+http://IP:8000
+
+ile dizine ulaşılabilir
+
+------8<--------------------------------------------
+# makewhatis /usr/local/man
+
+man dosyalarını indeksliyor
+
+$ man -k csh
+
+------8<--------------------------------------------
+
+file komutu sadece dosya özellikleri içinde değil aygıt bilgilerinide veriyor
+$ file -s /dev/ada0p6
+
+/dev/ada0p6: Unix Fast File system [v2] (little-endian) last mounted on /home, last written at Tue Apr  4 13:35:40 2017, clean flag 0, readonly flag 0, number of blocks 39321600, number of data blocks 38083703, number of cylinder groups 246, block size 32768, fragment size 4096, average file size 16384, average number of files in dir 64, pending blocks to free 0, pending inodes to free 1, system-wide uuid 0, minimum percentage of free blocks 8, TIME optimization
+
+------8<--------------------------------------------
+
+leapsecond file ('/var/db/ntpd.leap-seconds.list'): stat failed: No such file or directory
+
+# fetch https://www.ietf.org/timezones/data/leap-seconds.list -o /var/db/ntpd.leap-seconds.list
+
+------8<--------------------------------------------
+kernelin hangi secenekler ile derlendigini
+
+$ sysctl kern.conftxt
+ile öğrenebiliriz
+
+------8<--------------------------------------------
+vim de
+<9e> gibi karakterleri silmek için
+
+:%s/\%x9e//gc
+
+------8<--------------------------------------------
+subversion
+
+E000032: Can't write to connection: Broken pipe 
+
+vim svnserve.conf
+=BEGIN
+max-encryption = 0
+=END
+
+yada 
+sasl = true
+=>
+sasl = false
+
+olarak dene
+
+------8<--------------------------------------------
+
+hard linkleri bulma
+
+find /usr/bin -samefile /usr/bin/clang
+/usr/bin/cpp
+/usr/bin/cc
+/usr/bin/c++
+/usr/bin/clang-cpp
+/usr/bin/clang++
+/usr/bin/clang
+
+
+yada
+stat /usr/bin/clang*
+
+110 14285653 ......
+
+burada 14285653 inode numarası
+
+ls -li /usr/bin/clang*
+14285653 -r-xr-xr-x  6 root  wheel  43870440 Sep 29 04:45 /usr/bin/clang
+14285653 -r-xr-xr-x  6 root  wheel  43870440 Sep 29 04:45 /usr/bin/clang-cpp
+14285821 -r-xr-xr-x  1 root  wheel   2290464 Sep 29 04:45 /usr/bin/clang-tblgen
+14285653 -r-xr-xr-x  6 root  wheel  43870440 Sep 29 04:45 /usr/bin/clang++
+
+
+find /usr/bin/ -inum 14285653
+/usr/bin/cpp
+/usr/bin/cc
+/usr/bin/c++
+/usr/bin/clang-cpp
+/usr/bin/clang++
+/usr/bin/clang
+
+
+------8<--------------------------------------------
+usb mount
+
+mount_msdosfs /dev/da0s1 /mnt/flash/
+
+------8<--------------------------------------------
+
+sorun:
+E575: viminfo: Illegal starting char in line: ^E14
+çözüm:
+rm ~/.viminfo
+
+~/.viminfo
+dosyası geçmişi tutuyor, silinmesinde sorun yok
+
+------8<--------------------------------------------
+
+iconv -f KOI8-R -t utf-8 originalfile > newfile
+tüm .php dosyalarını utf-8 encoding'ine çevirip new klasörüne kopyalıyor
+
+mkdir new; for a in $(find . -name "*.php"); do iconv -f KOI8-R -t utf-8 <"$a" >new/"$a" ; done
+
+------8<--------------------------------------------
+sorun:
+php -v
+PHP Warning: Xdebug MUST be loaded as a Zend extension in Unknown on line 0
+
+çözüm
+vim /usr/local/etc/php/extensions.ini
+
+extension=xdebug.so
+=> satırını 
+zend_extension_ts=xdebug.so
+şeklinde değiştirmek
+
+------8<--------------------------------------------
+
+sorun:
+ERROR:NS_ERROR_FACTORY_NOT_REGISTERED (0×80040154)
+çözüm:
+rm -rf /tmp/.vbox-username-ipc/
+
+------8<--------------------------------------------
+vim de boş satırları silmek
+
+:g/^\s*$/d
+
+------8<--------------------------------------------
+pax bir dizini başka bir dizine kopyalıyor
+
+# cd / ; pax -p eme -X -rw . /mnt/root
+# cd /var; pax -p eme -X -rw . /mnt/var
+# cd /usr; pax -p eme -X -rw . /mnt/usr
+
+------8<--------------------------------------------
+
+vim 'de yanlışlıkla CTRL + s tuşuna bastığımızda vim kitlenir
+tekrar açmak için CTRL + q tuşuna basmalıyız
+
+tamamen iptal etmek için 
+
+stty -ixon
+
+bunu bir shell rc dosyasına koyabiliriz
+
+------8<--------------------------------------------
+tar programı libarchive'i kullanıyor
+
+iso dosyasını açmak için
+tar -xf dosya.iso
+
+yada bir klasöre 
+tar -xf dosya.iso -C /acilacak/dizin
+
+iso dosları aynı tar dosyaları gibi
+tar -t dosya.iso ile içeriği görülebilir
+
+
+tar komutu
+
+tar komutu normalde tape archive içindir,
+
+ör:
+
+tar -c /etc /var
+
+gibi bir komutu çalıştırmak istersek ve tape hazır değilse
+bize 
+Failed to open /dev/sa0 
+gibi bir hata verir hatanın sebebi eğer biz yedeğin alınacağı yer ile ilgili bir bilgi vermezsek varsayılan olarak
+tape'e yazmaya çalışacaktır,
+
+fakat bir tar -cf abc.tar /etc /var
+komutunu verirsek /etc ve /var dizinlerini abc.tar dosyasına arşivler,
+
+tar dosyalarının içeriğini listelemek
+
+tar -tvf file.tar
+tar -ztvf file.tar.gz
+tar -jtvf file.tar.bz2
+tar -Jtvf file.tar.xz
+
+
+t: List the contents of an archive
+v: Verbosely list files processed (display detailed information)
+z: Filter the archive through gzip so that we can open compressed (decompress) .gz tar file
+j: Filter archive through bzip2, use to decompress .bz2 files.
+J: Filter archive through xz, use to decompress .xz files.
+f filename: Use archive file called filename
+
+
+-p: ile dosyaların permission'larınıda saklar (sistem yedeklerinde mantıklı)
+
+
+tar clf - -C / -X /mnt . | tar xpvf - -C /mnt
+
+
+tar clf - -C /usr . | tar xpvf - -C /mnt/usr
+
+c => create
+l => follow links
+X => exclude 
+
+p => preserve permissions
+C => change directory
+
+
+bir arşivi listelemek için
+
+tar -tvf home.tar.gz
+
+
+bir tar dosyasindan istedigimiz bir dosya yada klasoru cikarmak icin
+tar --extract --file=MyBilet.tar.gz MyBilet/system/
+
+------8<--------------------------------------------
+eğer single user modda ağ erişimi gerekirse /etc/netstart ile sağlanabilir
+(firewall vs'de aktif oluyor)
+
+------8<--------------------------------------------
+
+tip komutu ile seri konsollara bağlanılabiliyor,
+
+tip portname
+
+port adlarını
+/etc/remote dosyasından görebiliyoruz
+
+bağlantıyı sonlandırmak için (enter'a bastıktan sonra)
+~.
+
+yani tilde-nokta
+
+
+eğer seri porttan başka sisteme bağlanıp restart edersek
+boot ekranını SPACE tuşu ile durdurabiliyoruz
+
+------8<--------------------------------------------
+normal tarihi epoch'a çevirme
+
+date -j 201703270000 '+%s'
+
+Mart 27 2017
+------8<--------------------------------------------
+
+sadece wheel grubundaki kullanıcılar su komutu ile root olabiliyor.
+
+------8<--------------------------------------------
+freebsd 10'da
+kern.ipc.somaxconn
+kern.ipc.soacceptqueue
+olarak değiştirilmiş
+önceki hala geçerli
+
+------8<--------------------------------------------
+
+chflags
+
+bazı dosya ve klasörlere chmod'dan farklı olarak nitelikler tanımlayabiliyoruz
+ör: bu dosya silinmesin
+bu dosyaya sadece ekleme yapılabilsin
+bu dosya hiç bir şekilde değiştirilmesin ve silinmesin gibi
+sistemin secure level'ına bağımlı
+
+u ile başlayanları root veya user tanımlayabilir , kaldırabilir
+diğerlerini sadece root tanımlayabilir
+
+sappnd , sappend : sadece root tanımlayabilir, dosyaya ekleme yapılamaz 
+schg , schange , simmutable  : sadece root tanımlayabilir, dosya hiç bir şekilde değiştirilemez silinemez
+nodump : sadece root tanımlayabilir, dump alınırken bu dosya yada dizin gözardı edilir
+sunlnk , sunlink : sadece root tanımlayabilir, dosya yada dizin silinemez
+arch , archived  : arşiv ufs dışındaki dosya sistemlerinin özellikleri
+hidden
+opaque
+uchg
+uunlnk
+
+niteliği iptal etmek için başına no kelimesi eklenir
+
+ls -lo ile tanımlanan nitelikler görüntülenebilir
+
+# chflags schange /boot/kernel/kernel
+# chflags schange /bin
+# chflags nodump /usr/ports
+# chflags sunlink /etc/rc.conf
+
+kernel securelevel -1'de ise tanımlayıp, kaldırabiliriz
+fakat 0,1,2,3 seviyelerinde root da olsa bazılarını değiştiremez 
+normalde tanımayıp
+
+$ touch x
+$ chflags uunlink x
+$ ls -lo
+-rw-r--r--  1 sternix  sternix  uunlnk 0 Mar 27 17:50 x
+$ rm x
+rm: x: Operation not permitted
+$ chflags nouunlink x
+$ ls -lo
+-rw-r--r--  1 sternix  sternix  - 0 Mar 27 17:50 x
+$ rm x
+
+
+man chflags
+
+# chflags -R 0 var
+var dizinindeki tüm flagları resetliyor (recursive)
+------8<--------------------------------------------
+chroot kullanımı
+
+# mkdir -p /opt/chroot/tmp
+# mkdir -p /opt/chroot/var/tmp
+# mkdir -p /opt/chroot/home/sternix
+
+# chmod 777 /opt/chroot/tmp
+# chmod 777 /opt/chroot/var/tmp
+# chmod 777 /opt/chroot/home/sternix
+
+# cp -r /bin /opt/chroot/
+# cp -r /libexec /opt/chroot
+# cp -r /lib /opt/chroot
+# cp -r /etc /opt/chroot
+
+....
+
+# chroot -u sternix /opt/chroot
+$ pwd
+$ /
+$ ls /
+$ bin
+
+------8<--------------------------------------------
+vim de 
+bir kriter ile başlayan tüm satırları değiştirme
+
+:%s/^NEYi*/NEYLE/gc
+
+------8<--------------------------------------------
+konsol'da zil sesini iptal etmek için
+
+# sysctl kern.vt.enable_bell=0
+# echo 'kern.vt.enable_bell=0' >> /etc/sysctl.conf
+
+------8<--------------------------------------------

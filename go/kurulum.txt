@@ -1,0 +1,12 @@
+https://golang.org/dl/
+
+# mkdir -p /opt/go/1_8_1
+# tar -C /opt/go/1_8_1 -xzf go1.8.1.freebsd-amd64.tar.gz
+
+# vim /etc/csh.cshrc
+setenv GOROOT /opt/go/1_8_1
+setenv PATH ${PATH}:${GOROOT}/bin
+
+$ source /etc/csh.cshrc
+$ go version
+go version go1.8.1 freebsd/amd64

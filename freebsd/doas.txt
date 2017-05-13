@@ -1,0 +1,26 @@
+# pkg install doas
+
+vim /usr/local/etc/doas.conf
+=BEGIN
+permit :wheel
+permit nopass root
+=END
+
+FreeBSD versiyonunda persist seçeneği şimdilik yok
+
+permit nopass keepenv root as root
+permit nopass keepenv USER as root
+
+permit :wheel as root
+permit nopass root
+
+
+doas.conf dosyasınının doğruluğunu kontrol etmek için
+doas -C /usr/local/etc/doas.conf
+
+$ doas -s
+ile root hakları ile oturum açıyoruz.
+
+permit myuser as root cmd /sbin/ping
+
+doas sh -c 'echo "naber" >  aaa.xyz'

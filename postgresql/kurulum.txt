@@ -1,0 +1,108 @@
+# pkg install gmake perl5 bison flex
+
+% pwd
+/home/sternix/pub
+
+% fetch --no-verify-peer https://ftp.postgresql.org/pub/source/v9.6.3/postgresql-9.6.3.tar.gz
+% tar -xzf postgresql-9.6.3.tar.gz
+% cd postgresql-9.6.3
+% ./configure --prefix=/opt/pgsql/9_6_3 --with-libedit-preferred --with-includes=/usr/include/edit/readline/
+% gmake
+% doas -s
+# gmake install
+# adduser postgres
+# cd /opt/pgsql/9_6_3
+# mkdir data
+# chown postgres:postgres data
+# su -m postgres
+% cd /opt/pgsql/9_6_3/bin
+% ./initdb --pgdata=/opt/pgsql/9_6_3/data --locale=tr_TR.UTF-8 --encoding=UTF-8
+% exit
+# mkdir -p /usr/local/etc/rc.d/
+# cp /home/sternix/pub/postgresql-9.6.3/contrib/start-scripts/freebsd /usr/local/etc/rc.d/postgresql.sh
+# chmod 755 /usr/local/etc/rc.d/postgresql.sh
+# vim /usr/local/etc/rc.d/postgresql.sh
+=BEGIN
+#prefix=/usr/local/pgsql
+prefix=/opt/pgsql/9_6_3
+
+# Data directory
+#PGDATA="/usr/local/pgsql/data"
+PGDATA="/opt/pgsql/9_6_3/data"
+=END
+
+PostgreSQL kütüphanelerini dynamic loader yoluna eklemek için
+# vim /etc/ld-elf.so.conf
+dikkat edilirse yolun sonunda slash yok
+=BEGIN
+/opt/pgsql/9_6_3/lib
+=END
+</pre>
+
+
+# /usr/local/etc/rc.d/postgresql.sh start
+
+# vim /etc/csh.cshrc
+setenv PGSQL_HOME /opt/pgsql/9_6_3
+setenv PATH ${PATH}:${PGSQL_HOME}/bin
+
+% source /etc/csh.cshrc
+
+% psql -d postgres -U postgres
+psql (9.6.3)
+Type "help" for help.
+
+postgres=#
+
+
+
+postgresql'de 10000 connection için
+
+# sysctl -w kern.ipc.shm_use_phys=1
+# sysctl -w kern.ipc.shmall=1048576
+# sysctl -w kern.ipc.shmmax=4294967296
+# sysctl -w kern.ipc.semmap=2048
+
+
+/etc/sysctl.conf dosyasına
+
+kern.ipc.shmall=1048576
+kern.ipc.shmmax=4294967296
+kern.ipc.semmap=2048
+
+
+
+/boot/loader.conf dosyasına
+
+kern.ipc.semmni=16384
+kern.ipc.semmns=16384
+kern.ipc.semmnu=16384
+
+
+
+After updating /etc/sysctl.conf, as mentioned, simply run the command:
+# /etc/rc.d/sysctl reload 
+
+----------------------------------------------------------------------------------------
+TODO
+PostgreSQL ssl ayarları
+
+openssl req -new -text -out server.req -subj '/C=TR/ST=Ankara/L=Ankara/O=Amiral/OU=Bilgi Islem/CN=pgsql.amiral.com.tr'
+openssl rsa -in privkey.pem -out server.key
+rm privkey.pem
+
+
+openssl genrsa -des3 -out client.req 1024 -subj '/C=TR/ST=Ankara/L=Ankara/O=Amiral/OU=Bilgi Islem/CN=client1'
+openssl rsa -in client.req -out client.key
+
+
+#ssl = off                              # (change requires restart)
+#ssl_ciphers = 'DEFAULT:!LOW:!EXP:!MD5:@STRENGTH'       # allowed SSL ciphers
+                                        # (change requires restart)
+#ssl_renegotiation_limit = 512MB        # amount of data between renegotiations
+#ssl_cert_file = 'server.crt'           # (change requires restart)
+#ssl_key_file = 'server.key'            # (change requires restart)
+#ssl_ca_file = ''                       # (change requires restart)
+#ssl_crl_file = ''                      # (change requires restart)
+#password_encryption = on
+#db_user_namespace = off
