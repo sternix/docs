@@ -48,6 +48,15 @@ setenv PATH ${PATH}:${PGSQL_HOME}/bin
 % source /etc/csh.cshrc
 
 Basit iyileştirmeler
+
+i/o ları azaltmak için stat'ları memory disk'te tutuyoruz
+# mkdir /opt/pgsql/pg_stat_tmp/
+# vim /etc/fstab
+=BEGIN
+md	/opt/pgsql/pg_stat_tmp/	mfs	rw,-wpostgres:postgres,-s256M,-S
+=END
+# mount md 
+
 # vim /opt/pgsql/10_b1/data/postgresql.conf
 =BEGIN
 #update_process_title = on
@@ -73,3 +82,25 @@ postgres=# create role USER with login createdb;
 postgres=# \password 
 postgres=# \password USER
 postgres=# \c postgres USER
+You are now connected to database "postgres" as user "USER".
+postgres=> create database test;
+CREATE DATABASE
+postgres=> \c test
+You are now connected to database "test" as user "USER".
+test=> create table tbltest (id serial primary key, adi varchar(25), soyadi varchar(25));
+CREATE TABLE
+test=> insert into tbltest values (default,'test','test');
+INSERT 0 1
+test=> select * from tbltest;
+ id | adi  | soyadi 
+----+------+--------
+  1 | test | test
+(1 row)
+test=> update tbltest set adi = 'testx', soyadi = 'testx' where id = 1;
+UPDATE 1
+test=> delete from tbltest where id = 1;
+DELETE 1
+test=> select * from tbltest;
+ id | adi | soyadi 
+----+-----+--------
+(0 rows)
