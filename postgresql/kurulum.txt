@@ -37,8 +37,6 @@ dikkat edilirse yolun sonunda slash yok
 =BEGIN
 /opt/pgsql/9_6_3/lib
 =END
-</pre>
-
 
 # /usr/local/etc/rc.d/postgresql.sh start
 

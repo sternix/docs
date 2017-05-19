@@ -1,0 +1,75 @@
+# pkg install gmake perl5 bison flex
+
+% pwd
+/home/sternix/pub
+
+% fetch --no-verify-peer https://ftp.postgresql.org/pub/source/v10beta1/postgresql-10beta1.tar.gz 
+% tar -xzf postgresql-10beta1.tar.gz 
+% cd postgresql-10beta1
+% ./configure --prefix=/opt/pgsql/10_b1 --with-libedit-preferred --with-includes=/usr/include/edit/readline/
+% gmake
+% doas -s
+# gmake install
+# adduser postgres
+# cd /opt/pgsql/10_b1/
+# mkdir data
+# chown postgres:postgres data
+# su -m postgres
+% cd /opt/pgsql/10_b1/bin
+% ./initdb --pgdata=/opt/pgsql/10_b1/data --locale=tr_TR.UTF-8 --encoding=UTF-8
+% exit
+# mkdir -p /usr/local/etc/rc.d/
+# cp /home/sternix/pub/postgresql-10beta1/contrib/start-scripts/freebsd /usr/local/etc/rc.d/postgresql.sh 
+# chmod 755 /usr/local/etc/rc.d/postgresql.sh
+# vim /usr/local/etc/rc.d/postgresql.sh
+=BEGIN
+#prefix=/usr/local/pgsql
+prefix=/opt/pgsql/10_b1
+
+# Data directory
+#PGDATA="/usr/local/pgsql/data"
+PGDATA="/opt/pgsql/10_b1/data"
+=END
+
+PostgreSQL kütüphanelerini dynamic loader yoluna eklemek için
+# vim /etc/ld-elf.so.conf
+dikkat edilirse yolun sonunda slash yok
+=BEGIN
+/opt/pgsql/10_b1/lib
+=END
+
+# ldconfig -m /opt/pgsql/10_b1/lib
+
+
+# vim /etc/csh.cshrc
+setenv PGSQL_HOME /opt/pgsql/10_b1
+setenv PATH ${PATH}:${PGSQL_HOME}/bin
+
+% source /etc/csh.cshrc
+
+Basit iyileştirmeler
+# vim /opt/pgsql/10_b1/data/postgresql.conf
+=BEGIN
+#update_process_title = on
+update_process_title = off
+
+#stats_temp_directory = 'pg_stat_tmp'
+stats_temp_directory = '/opt/pgsql/pg_stat_tmp'
+=END
+
+# /usr/local/etc/rc.d/postgresql.sh start
+
+% psql -d postgres -U postgres
+psql (10beta1)
+Type "help" for help.
+
+postgres=# select version();
+ version                                                                         
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 10beta1 on x86_64-unknown-freebsd11.0, compiled by FreeBSD clang version 3.8.0 (tags/RELEASE_380/final 262564) (based on LLVM 3.8.0), 64-bit
+(1 row)
+
+postgres=# create role USER with login createdb;
+postgres=# \password 
+postgres=# \password USER
+postgres=# \c postgres USER
